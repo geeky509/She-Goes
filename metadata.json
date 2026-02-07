@@ -1,0 +1,7 @@
+{
+  "name": "She Goes",
+  "description": "A mindset + micro-action app for ambitious women to turn big dreams into real action through daily, emotionally safe steps. Designed for Gabby Beckford (PacksLight).",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
