@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { auth } from '../services/firebase';
 import { 
@@ -10,7 +9,7 @@ import {
   signInAnonymously
 } from 'firebase/auth';
 import { COLORS } from '../constants';
-import { Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 
 interface AuthProps {
   onSuccess: () => void;
@@ -80,10 +79,13 @@ const Auth: React.FC<AuthProps> = ({ onSuccess }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#FAF9F6] p-8 justify-center animate-in fade-in duration-700">
+    <div className="flex flex-col h-full bg-background p-8 justify-center animate-in fade-in duration-700">
       <div className="mb-10 text-center">
-        <h1 className="text-5xl font-bold mb-3 italic" style={{ color: COLORS.text }}>She Goes</h1>
-        <p className="text-gray-400 font-medium text-lg">Small actions. Big lives.</p>
+        <div className="inline-flex items-center justify-center space-x-2 mb-2">
+            <Sparkles className="w-8 h-8 text-primary animate-pulse" />
+            <h1 className="text-5xl font-bold italic" style={{ color: COLORS.text }}>She Goes</h1>
+        </div>
+        <p className="text-charcoal opacity-60 font-medium text-lg">Small actions. Big lives.</p>
       </div>
 
       <div className="space-y-4 max-w-sm mx-auto w-full">
@@ -92,14 +94,14 @@ const Auth: React.FC<AuthProps> = ({ onSuccess }) => {
           <button
             onClick={handleGoogleSignIn}
             disabled={!!socialLoading || loading}
-            className="w-full py-4 rounded-2xl bg-white border border-gray-100 shadow-sm flex items-center justify-center space-x-3 transition-all active:scale-95 hover:bg-gray-50 disabled:opacity-50"
+            className="btn-energetic w-full py-4 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center space-x-3 disabled:opacity-50"
           >
             {socialLoading === 'google' ? (
-              <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+              <div className="spinner-gradient"></div>
             ) : (
               <>
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
-                <span className="font-semibold text-gray-700">Continue with Google</span>
+                <span className="font-bold text-charcoal">Continue with Google</span>
               </>
             )}
           </button>
@@ -107,78 +109,78 @@ const Auth: React.FC<AuthProps> = ({ onSuccess }) => {
           <button
             onClick={handleAnonymousSignIn}
             disabled={!!socialLoading || loading}
-            className="w-full py-4 rounded-2xl bg-[#E9EDC9] flex items-center justify-center space-x-3 transition-all active:scale-95 hover:bg-[#d8ddb8] disabled:opacity-50"
+            className="btn-energetic w-full py-4 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center space-x-3 disabled:opacity-50"
           >
             {socialLoading === 'anonymous' ? (
-              <Loader2 className="w-5 h-5 animate-spin text-[#283618]" />
+              <div className="spinner-gradient"></div>
             ) : (
               <>
-                <User className="w-5 h-5 text-[#283618]" />
-                <span className="font-semibold text-[#283618]">Continue as Guest</span>
+                <User className="w-5 h-5 text-charcoal/40" />
+                <span className="font-bold text-charcoal/60">Continue as Guest</span>
               </>
             )}
           </button>
         </div>
 
         <div className="relative flex items-center py-2">
-          <div className="flex-grow border-t border-gray-100"></div>
-          <span className="flex-shrink mx-4 text-gray-300 text-[10px] font-bold uppercase tracking-widest">or email</span>
-          <div className="flex-grow border-t border-gray-100"></div>
+          <div className="flex-grow border-t border-charcoal/10"></div>
+          <span className="flex-shrink mx-4 text-charcoal/40 text-[10px] font-bold uppercase tracking-widest">or email</span>
+          <div className="flex-grow border-t border-charcoal/10"></div>
         </div>
 
         {/* Email Form */}
         <form onSubmit={handleEmailAuth} className="space-y-4">
           {!isLogin && (
             <div className="relative group">
-              <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-[#D4A373] transition-colors" />
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-charcoal/30 group-focus-within:text-primary transition-colors" />
               <input
                 type="text"
                 placeholder="Full Name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border border-gray-100 shadow-sm focus:ring-2 focus:ring-[#D4A373] outline-none transition-all"
+                className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border border-charcoal/5 shadow-sm focus:ring-2 focus:ring-primary outline-none transition-all"
               />
             </div>
           )}
           
           <div className="relative group">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-[#D4A373] transition-colors" />
+            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-charcoal/30 group-focus-within:text-primary transition-colors" />
             <input
               type="email"
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border border-gray-100 shadow-sm focus:ring-2 focus:ring-[#D4A373] outline-none transition-all"
+              className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border border-charcoal/5 shadow-sm focus:ring-2 focus:ring-primary outline-none transition-all"
             />
           </div>
 
           <div className="relative group">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-[#D4A373] transition-colors" />
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-charcoal/30 group-focus-within:text-primary transition-colors" />
             <input
               type="password"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border border-gray-100 shadow-sm focus:ring-2 focus:ring-[#D4A373] outline-none transition-all"
+              className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border border-charcoal/5 shadow-sm focus:ring-2 focus:ring-primary outline-none transition-all"
             />
           </div>
 
-          {error && <p className="text-red-400 text-xs text-center px-2 animate-in slide-in-from-top duration-300">{error}</p>}
+          {error && <p className="text-red-500 text-xs text-center px-2 animate-in slide-in-from-top duration-300 font-medium">{error}</p>}
 
           <button
             type="submit"
             disabled={loading || !!socialLoading}
-            className="w-full py-4 rounded-2xl text-white font-bold text-lg flex items-center justify-center space-x-2 transition-all active:scale-95 shadow-lg disabled:opacity-50"
-            style={{ backgroundColor: COLORS.text }}
+            className="btn-energetic w-full py-4 rounded-2xl text-white font-bold text-lg flex items-center justify-center space-x-2 shadow-lg disabled:opacity-50"
+            style={{ backgroundColor: COLORS.primary }}
           >
             {loading ? (
-              <Loader2 className="w-6 h-6 animate-spin" />
+              <div className="spinner-gradient !border-t-white !border-r-white/30"></div>
             ) : (
               <>
-                <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
+                <span>{isLogin ? 'Sign In' : 'Join the Vibe'}</span>
                 <ArrowRight className="w-5 h-5" />
               </>
             )}
@@ -188,7 +190,7 @@ const Auth: React.FC<AuthProps> = ({ onSuccess }) => {
         <div className="mt-8 text-center">
           <button
             onClick={() => setIsLogin(!isLogin)}
-            className="text-gray-400 text-sm font-medium hover:text-[#D4A373] transition-colors"
+            className="text-charcoal/60 text-sm font-bold hover:text-primary transition-colors"
           >
             {isLogin ? "New here? Create an account" : "Already have an account? Sign in"}
           </button>
@@ -196,7 +198,7 @@ const Auth: React.FC<AuthProps> = ({ onSuccess }) => {
       </div>
       
       <div className="mt-12 text-center opacity-30">
-        <p className="text-[10px] uppercase tracking-widest font-bold">Gabby Beckford x She Goes</p>
+        <p className="text-[10px] uppercase tracking-widest font-black">Gabby Beckford • She Goes</p>
       </div>
     </div>
   );

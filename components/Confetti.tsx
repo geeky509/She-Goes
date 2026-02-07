@@ -11,7 +11,7 @@ const Confetti: React.FC<{ active: boolean }> = ({ active }) => {
         x: Math.random() * 100,
         y: -10,
         size: Math.random() * 10 + 5,
-        color: ['#D4A373', '#FAEDCD', '#CCD5AE', '#FEFAE0', '#BC6C25'][Math.floor(Math.random() * 5)],
+        color: ['#EC4899', '#8B5CF6', '#F59E0B', '#FFFFFF', '#1F2937'][Math.floor(Math.random() * 5)],
         delay: Math.random() * 2,
         duration: 2 + Math.random() * 2,
         rotate: Math.random() * 360

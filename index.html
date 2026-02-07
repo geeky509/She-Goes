@@ -8,12 +8,43 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+          theme: {
+            extend: {
+              colors: {
+                primary: '#EC4899',
+                cta: '#8B5CF6',
+                background: '#FEF3C7',
+                charcoal: '#1F2937',
+                accent: '#F59E0B',
+              },
+              animation: {
+                'bounce-subtle': 'bounce-subtle 2s ease-in-out infinite',
+                'pulse-soft': 'pulse-soft 1.5s ease-in-out infinite',
+                'spin-slow': 'spin 8s linear infinite',
+              },
+              keyframes: {
+                'bounce-subtle': {
+                  '0%, 100%': { transform: 'translateY(0)' },
+                  '50%': { transform: 'translateY(-4px)' },
+                },
+                'pulse-soft': {
+                  '0%, 100%': { transform: 'scale(1)', opacity: '1' },
+                  '50%': { transform: 'scale(1.05)', opacity: '0.85' },
+                }
+              }
+            }
+          }
+        }
+    </script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
             -webkit-tap-highlight-color: transparent;
-            background-color: #FAF9F6;
+            background-color: #FEF3C7;
+            color: #1F2937;
         }
         h1, h2, h3, .serif {
             font-family: 'Playfair Display', serif;
@@ -21,12 +52,48 @@
         .safe-area-bottom {
             padding-bottom: env(safe-area-inset-bottom);
         }
-        @keyframes bounce-subtle {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-4px); }
+
+        /* Energetic Button Interactions */
+        .btn-energetic {
+            transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
         }
-        .animate-bounce-subtle {
-            animation: bounce-subtle 2s ease-in-out infinite;
+        .btn-energetic:hover {
+            transform: scale(1.02) translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(236, 72, 153, 0.3);
+        }
+        .btn-energetic:active {
+            transform: scale(0.98);
+        }
+
+        /* Spinner: Rotating circle with gradient */
+        .spinner-gradient {
+            width: 24px;
+            height: 24px;
+            border: 3px solid transparent;
+            border-top: 3px solid #EC4899;
+            border-right: 3px solid #8B5CF6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Indeterminate Progress Bar */
+        .progress-bar-indeterminate {
+            height: 100%;
+            width: 50%;
+            background: linear-gradient(90deg, transparent, #EC4899, transparent);
+            animation: indeterminate 1.5s ease-in-out infinite;
+        }
+
+        @keyframes indeterminate {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(200%); }
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
     </style>
 <script type="importmap">

@@ -4,20 +4,20 @@ import { Plane, Briefcase, Sparkles, Home, Heart } from 'lucide-react';
 import { Category, DreamDrop } from './types';
 
 export const COLORS = {
-  primary: '#D4A373', 
-  secondary: '#FAEDCD', 
-  accent: '#CCD5AE', 
-  warm: '#FEFAE0', 
-  text: '#283618', 
-  muted: '#E9EDC9', 
-  premium: '#BC6C25' 
+  primary: '#EC4899',   // Pink
+  cta: '#8B5CF6',       // Purple
+  background: '#FEF3C7', // Warm Cream
+  text: '#1F2937',      // Charcoal
+  accent: '#F59E0B',    // Orange
+  white: '#FFFFFF',
+  muted: '#FDE68A'      // Lighter yellow/cream
 };
 
 export const CATEGORIES: { name: Category; icon: React.ReactNode; color: string }[] = [
-  { name: 'Travel', icon: <Plane className="w-6 h-6" />, color: '#D4A373' },
-  { name: 'Career & Money', icon: <Briefcase className="w-6 h-6" />, color: '#BC6C25' },
-  { name: 'Confidence', icon: <Sparkles className="w-6 h-6" />, color: '#E9EDC9' },
-  { name: 'Lifestyle Upgrade', icon: <Home className="w-6 h-6" />, color: '#CCD5AE' },
+  { name: 'Travel', icon: <Plane className="w-6 h-6" />, color: '#EC4899' },
+  { name: 'Career & Money', icon: <Briefcase className="w-6 h-6" />, color: '#8B5CF6' },
+  { name: 'Confidence', icon: <Sparkles className="w-6 h-6" />, color: '#F59E0B' },
+  { name: 'Lifestyle Upgrade', icon: <Home className="w-6 h-6" />, color: '#1F2937' },
 ];
 
 export const SUGGESTED_DREAMS: Record<Category, string[]> = {
@@ -28,11 +28,11 @@ export const SUGGESTED_DREAMS: Record<Category, string[]> = {
 };
 
 export const GABBY_QUOTES = [
-  "You've got this, sis.",
-  "Your dream is valid. Let's move towards it.",
-  "Permission granted. Now, let's take one step.",
-  "Growth happens in the small moments.",
-  "Worldly, wealthy, and well-rested. That's the vibe."
+  "You've got this, sis. ✨",
+  "Your dream is valid. Let's move towards it! 🚀",
+  "Permission granted. Now, let's take one step. 💅",
+  "Growth happens in the small moments. 🌱",
+  "Worldly, wealthy, and well-rested. That's the vibe. 🥂"
 ];
 
 export const MILESTONES = [3, 7, 15, 30, 50, 100];
