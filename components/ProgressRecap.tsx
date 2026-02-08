@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { X, Trophy, Flame, Target, Star, ChevronRight, Zap } from 'lucide-react';
-import { Win } from '../types';
-import { COLORS } from '../constants';
+import { Win } from '../types.ts';
+import { COLORS } from '../constants.tsx';
 
 interface ProgressRecapProps {
   wins: Win[];

@@ -19,15 +19,15 @@ import {
   ShieldCheck,
   ShieldAlert
 } from 'lucide-react';
-import { Category, UserState, Dream, Win, MicroAction } from './types';
-import { CATEGORIES, SUGGESTED_DREAMS, COLORS, GABBY_QUOTES, MILESTONES, MONTHLY_DREAM_DROPS } from './constants';
-import { generateMicroAction } from './services/geminiService';
-import { supabase } from './services/supabase';
-import Confetti from './components/Confetti';
-import Paywall from './components/Paywall';
-import ShareModal from './components/ShareModal';
-import Auth from './components/Auth';
-import ProgressRecap from './components/ProgressRecap';
+import { Category, UserState, Dream, Win, MicroAction } from './types.ts';
+import { CATEGORIES, SUGGESTED_DREAMS, COLORS, GABBY_QUOTES, MILESTONES, MONTHLY_DREAM_DROPS } from './constants.tsx';
+import { generateMicroAction } from './services/geminiService.ts';
+import { supabase } from './services/supabase.ts';
+import Confetti from './components/Confetti.tsx';
+import Paywall from './components/Paywall.tsx';
+import ShareModal from './components/ShareModal.tsx';
+import Auth from './components/Auth.tsx';
+import ProgressRecap from './components/ProgressRecap.tsx';
 
 const App: React.FC = () => {
   // --- STATE ---

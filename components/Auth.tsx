@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { supabase } from '../services/supabase';
-import { COLORS } from '../constants';
+import { supabase } from '../services/supabase.ts';
+import { COLORS } from '../constants.tsx';
 import { Mail, Lock, User, ArrowRight, Sparkles, Apple } from 'lucide-react';
 
 interface AuthProps {

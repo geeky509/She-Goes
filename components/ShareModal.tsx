@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { X, Share2, Download, Copy, CheckCircle2, Star } from 'lucide-react';
-import { COLORS } from '../constants';
+import { COLORS } from '../constants.tsx';
 
 interface ShareModalProps {
   title: string;
