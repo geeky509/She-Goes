@@ -2,11 +2,18 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Category, MicroAction } from "../types.ts";
 
-// Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+/**
+ * Safely initializes the GoogleGenAI client.
+ * Relying on process.env.API_KEY being injected into the window context.
+ */
+const getAIClient = () => {
+  const apiKey = (typeof process !== 'undefined' && process.env?.API_KEY) || '';
+  return new GoogleGenAI({ apiKey });
+};
 
 export const generateMicroAction = async (category: Category, dream: string): Promise<MicroAction> => {
   try {
+    const ai = getAIClient();
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `You are Gabby Beckford (PacksLight), a warm, encouraging travel and lifestyle creator. 
@@ -33,7 +40,6 @@ export const generateMicroAction = async (category: Category, dream: string): Pr
       }
     });
 
-    // The text property is used to get the content directly.
     return JSON.parse(response.text.trim()) as MicroAction;
   } catch (error) {
     console.error("Gemini failed:", error);
