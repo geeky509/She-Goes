@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Plus, 
@@ -6,26 +7,22 @@ import {
   Settings, 
   ChevronRight,
   CheckCircle2,
-  Calendar,
   Lock,
   Share2,
   LogOut,
   Camera,
-  Loader2,
   Trophy,
-  User as UserIcon,
   Sparkles,
   Zap,
   Gift,
-  Star
+  Star,
+  ShieldCheck,
+  ShieldAlert
 } from 'lucide-react';
 import { Category, UserState, Dream, Win, MicroAction } from './types';
 import { CATEGORIES, SUGGESTED_DREAMS, COLORS, GABBY_QUOTES, MILESTONES, MONTHLY_DREAM_DROPS } from './constants';
 import { generateMicroAction } from './services/geminiService';
-import { auth, db, storage } from './services/firebase';
-import { onAuthStateChanged, signOut, updateProfile } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { supabase } from './services/supabase';
 import Confetti from './components/Confetti';
 import Paywall from './components/Paywall';
 import ShareModal from './components/ShareModal';
@@ -52,39 +49,41 @@ const App: React.FC = () => {
 
   // --- AUTH LISTENERS ---
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const user = session?.user || null;
       setCurrentUser(user);
       if (user) {
-        await loadUserData(user.uid, user);
+        await loadUserData(user.id, user);
       } else {
         setUserState(null);
         setLoading(false);
       }
     });
-    return unsubscribe;
+    return () => subscription.unsubscribe();
   }, []);
 
   const loadUserData = async (uid: string, authUser: any) => {
     setLoading(true);
     try {
-      const userDoc = await getDoc(doc(db, "users", uid));
-      if (userDoc.exists()) {
-        const data = userDoc.data() as UserState;
+      const { data: userDoc, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('uid', uid)
+        .maybeSingle();
+
+      if (userDoc) {
         setUserState({
-          ...data,
-          uid,
-          email: authUser.email,
-          displayName: authUser.displayName || data.displayName,
-          photoURL: authUser.photoURL || data.photoURL,
-          milestonesReached: data.milestonesReached || []
+          ...userDoc,
+          displayName: authUser.user_metadata?.display_name || userDoc.displayName,
+          photoURL: authUser.user_metadata?.avatar_url || userDoc.photoURL,
         });
-        setView(data.hasOnboarded ? 'home' : 'onboarding');
+        setView(userDoc.hasOnboarded ? 'home' : 'onboarding');
       } else {
         const initialState: UserState = {
           uid,
           email: authUser.email,
-          displayName: authUser.displayName,
-          photoURL: authUser.photoURL,
+          displayName: authUser.user_metadata?.display_name || 'Adventurer',
+          photoURL: authUser.user_metadata?.avatar_url || null,
           hasOnboarded: false,
           activeDreamId: null,
           dreams: [],
@@ -92,9 +91,10 @@ const App: React.FC = () => {
           streak: 0,
           lastCompletedDate: null,
           isPremium: false,
+          streakProtectionEnabled: true,
           milestonesReached: []
         };
-        await setDoc(doc(db, "users", uid), initialState);
+        await supabase.from('users').insert([initialState]);
         setUserState(initialState);
         setView('onboarding');
       }
@@ -127,7 +127,7 @@ const App: React.FC = () => {
     const newState = { ...userState, ...updates };
     setUserState(newState);
     try {
-      await updateDoc(doc(db, "users", currentUser.uid), updates);
+      await supabase.from('users').update(updates).eq('uid', currentUser.id);
     } catch (err) {
       console.error("Error syncing user data:", err);
     }
@@ -147,7 +147,7 @@ const App: React.FC = () => {
   // --- ACTIONS ---
   const handleSignOut = async () => {
     setLoading(true);
-    await signOut(auth);
+    await supabase.auth.signOut();
     setView('onboarding');
     setOnboardingStep(1);
   };
@@ -194,10 +194,9 @@ const App: React.FC = () => {
     const isConsecutive = userState!.lastCompletedDate === yesterdayStr;
     let newStreak = 1;
 
-    // Streak Protection Logic
     if (isConsecutive) {
       newStreak = userState!.streak + 1;
-    } else if (userState!.isPremium && userState!.lastCompletedDate) {
+    } else if (userState!.isPremium && userState!.streakProtectionEnabled && userState!.lastCompletedDate) {
       const lastDate = new Date(userState!.lastCompletedDate);
       const diffTime = Math.abs(new Date().getTime() - lastDate.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -247,15 +246,24 @@ const App: React.FC = () => {
 
     setUploadingPhoto(true);
     try {
-      const storageRef = ref(storage, `profiles/${currentUser.uid}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      const filePath = `profiles/${currentUser.id}`;
+      const { data, error } = await supabase.storage
+        .from('profiles')
+        .upload(filePath, file, { upsert: true });
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('profiles')
+        .getPublicUrl(filePath);
       
-      await updateProfile(currentUser, { photoURL: url });
-      await syncUserData({ photoURL: url });
+      await supabase.auth.updateUser({
+        data: { avatar_url: publicUrl }
+      });
+      await syncUserData({ photoURL: publicUrl });
     } catch (err) {
       console.error("Upload failed", err);
-      alert("Failed to upload image.");
+      alert("Failed to upload image. Ensure the 'profiles' bucket exists.");
     } finally {
       setUploadingPhoto(false);
     }
@@ -338,7 +346,6 @@ const App: React.FC = () => {
 
     return (
       <div className="flex flex-col h-full p-6 space-y-6 animate-in fade-in duration-500">
-        {/* Milestone Achievement Popup */}
         {showMilestonePopup && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm animate-in zoom-in duration-300">
             <div className="bg-white rounded-[40px] p-8 text-center space-y-6 shadow-2xl w-full max-w-xs relative overflow-hidden">
@@ -372,7 +379,6 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Milestone Progress Bar */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-charcoal/5">
           <div className="flex justify-between text-[9px] uppercase font-black text-charcoal/40 mb-2 tracking-[0.2em]">
             <span>Next Milestone: {nextMilestone} Wins</span>
@@ -540,27 +546,52 @@ const App: React.FC = () => {
         </div>
 
         <div className="text-center space-y-1">
-          <h3 className="text-2xl font-black text-charcoal">{userState?.displayName || (currentUser?.isAnonymous ? 'Guest' : 'Adventurer')}</h3>
+          <h3 className="text-2xl font-black text-charcoal">{userState?.displayName || 'Adventurer'}</h3>
           <p className="text-charcoal/40 font-bold text-[10px] uppercase tracking-widest">{userState?.email || 'Guest Explorer'}</p>
         </div>
       </div>
 
       <div className="space-y-4">
         {userState?.isPremium && (
-          <div className="bg-white rounded-3xl p-6 shadow-sm space-y-4 border border-charcoal/5">
-             <div className="flex items-center space-x-2">
-                <Gift className="w-5 h-5 text-primary" />
-                <h3 className="font-black text-[10px] uppercase tracking-widest text-charcoal/30">Dream Drops</h3>
-             </div>
-             <div className="space-y-3">
-                {MONTHLY_DREAM_DROPS.map(drop => (
-                  <div key={drop.id} className="p-4 bg-background rounded-2xl border border-primary/10">
-                    <h4 className="font-black text-primary text-sm">{drop.title}</h4>
-                    <p className="text-[11px] text-charcoal/70 mt-1 font-medium">{drop.description}</p>
+          <>
+            <div className="bg-white rounded-3xl p-6 shadow-sm border border-charcoal/5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className={`p-2 rounded-xl ${userState.streakProtectionEnabled ? 'bg-primary/10 text-primary' : 'bg-charcoal/5 text-charcoal/30'}`}>
+                    {userState.streakProtectionEnabled ? <ShieldCheck className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
                   </div>
-                ))}
-             </div>
-          </div>
+                  <div>
+                    <h3 className="font-black text-sm text-charcoal uppercase tracking-widest">Streak Protection</h3>
+                    <p className="text-[10px] text-charcoal/40 font-bold">Safeguard your momentum</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => syncUserData({ streakProtectionEnabled: !userState.streakProtectionEnabled })}
+                  className={`w-14 h-8 rounded-full p-1 transition-colors duration-300 relative ${userState.streakProtectionEnabled ? 'bg-primary' : 'bg-charcoal/20'}`}
+                >
+                  <div className={`w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ${userState.streakProtectionEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                </button>
+              </div>
+              <p className="text-[11px] text-charcoal/60 leading-relaxed font-medium italic">
+                Active protection keeps your streak alive for up to 3 days if you miss a check-in. Guilt-free growth.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-3xl p-6 shadow-sm space-y-4 border border-charcoal/5">
+              <div className="flex items-center space-x-2">
+                  <Gift className="w-5 h-5 text-primary" />
+                  <h3 className="font-black text-[10px] uppercase tracking-widest text-charcoal/30">Dream Drops</h3>
+              </div>
+              <div className="space-y-3">
+                  {MONTHLY_DREAM_DROPS.map(drop => (
+                    <div key={drop.id} className="p-4 bg-background rounded-2xl border border-primary/10">
+                      <h4 className="font-black text-primary text-sm">{drop.title}</h4>
+                      <p className="text-[11px] text-charcoal/70 mt-1 font-medium">{drop.description}</p>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </>
         )}
 
         <div className="bg-white p-6 rounded-3xl border border-charcoal/10 shadow-sm space-y-4">

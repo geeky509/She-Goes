@@ -27,6 +27,7 @@ export interface UserState {
   streak: number;
   lastCompletedDate: string | null; // ISO Date YYYY-MM-DD
   isPremium: boolean;
+  streakProtectionEnabled: boolean;
   milestonesReached: number[]; // e.g. [3, 7, 15]
 }
 

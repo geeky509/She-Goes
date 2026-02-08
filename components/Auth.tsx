@@ -1,15 +1,8 @@
+
 import React, { useState } from 'react';
-import { auth } from '../services/firebase';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
-  updateProfile,
-  signInWithPopup,
-  GoogleAuthProvider,
-  signInAnonymously
-} from 'firebase/auth';
+import { supabase } from '../services/supabase';
 import { COLORS } from '../constants';
-import { Mail, Lock, User, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, Sparkles, Apple } from 'lucide-react';
 
 interface AuthProps {
   onSuccess: () => void;
@@ -31,35 +24,44 @@ const Auth: React.FC<AuthProps> = ({ onSuccess }) => {
 
     try {
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) throw signInError;
       } else {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        await updateProfile(userCredential.user, { displayName: name });
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              display_name: name,
+            },
+          },
+        });
+        if (signUpError) throw signUpError;
       }
       onSuccess();
     } catch (err: any) {
-      let message = "An error occurred during authentication.";
-      if (err.code === 'auth/user-not-found') message = "Account not found.";
-      if (err.code === 'auth/wrong-password') message = "Incorrect password.";
-      if (err.code === 'auth/email-already-in-use') message = "Email already in use.";
-      if (err.code === 'auth/weak-password') message = "Password should be at least 6 characters.";
-      setError(message);
+      setError(err.message || "An error occurred during authentication.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setSocialLoading('google');
+  const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
+    setSocialLoading(provider);
     setError(null);
-    const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
-      onSuccess();
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      if (oauthError) throw oauthError;
     } catch (err: any) {
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setError("Google sign-in failed. Please try again.");
-      }
+      setError(`${provider.charAt(0).toUpperCase() + provider.slice(1)} sign-in failed. Please try again.`);
     } finally {
       setSocialLoading(null);
     }
@@ -69,7 +71,8 @@ const Auth: React.FC<AuthProps> = ({ onSuccess }) => {
     setSocialLoading('anonymous');
     setError(null);
     try {
-      await signInAnonymously(auth);
+      const { error: anonError } = await supabase.auth.signInAnonymously();
+      if (anonError) throw anonError;
       onSuccess();
     } catch (err: any) {
       setError("Guest access failed. Please try again.");
@@ -89,10 +92,24 @@ const Auth: React.FC<AuthProps> = ({ onSuccess }) => {
       </div>
 
       <div className="space-y-4 max-w-sm mx-auto w-full">
-        {/* Social & Guest Buttons */}
         <div className="grid grid-cols-1 gap-3 mb-6">
           <button
-            onClick={handleGoogleSignIn}
+            onClick={() => handleOAuthSignIn('apple')}
+            disabled={!!socialLoading || loading}
+            className="btn-energetic w-full py-4 rounded-2xl bg-black text-white shadow-sm flex items-center justify-center space-x-3 disabled:opacity-50"
+          >
+            {socialLoading === 'apple' ? (
+              <div className="spinner-gradient !border-t-white !border-r-white/30"></div>
+            ) : (
+              <>
+                <Apple className="w-5 h-5 fill-white" />
+                <span className="font-bold">Continue with Apple</span>
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={() => handleOAuthSignIn('google')}
             disabled={!!socialLoading || loading}
             className="btn-energetic w-full py-4 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center space-x-3 disabled:opacity-50"
           >
@@ -128,7 +145,6 @@ const Auth: React.FC<AuthProps> = ({ onSuccess }) => {
           <div className="flex-grow border-t border-charcoal/10"></div>
         </div>
 
-        {/* Email Form */}
         <form onSubmit={handleEmailAuth} className="space-y-4">
           {!isLogin && (
             <div className="relative group">
