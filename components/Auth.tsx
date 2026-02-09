@@ -14,207 +14,94 @@ const Auth: React.FC<AuthProps> = ({ onSuccess }) => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [socialLoading, setSocialLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
     try {
       if (isLogin) {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (signInError) throw signInError;
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
       } else {
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              display_name: name,
-            },
-          },
+        const { error } = await supabase.auth.signUp({ 
+          email, 
+          password, 
+          options: { data: { display_name: name } }
         });
-        if (signUpError) throw signUpError;
+        if (error) throw error;
       }
       onSuccess();
     } catch (err: any) {
-      setError(err.message || "An error occurred during authentication.");
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
-    setSocialLoading(provider);
-    setError(null);
     try {
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      await supabase.auth.signInWithOAuth({
         provider,
-        options: {
-          redirectTo: window.location.origin
-        }
+        options: { redirectTo: window.location.origin }
       });
-      if (oauthError) throw oauthError;
-    } catch (err: any) {
-      setError(`${provider.charAt(0).toUpperCase() + provider.slice(1)} sign-in failed. Please try again.`);
-    } finally {
-      setSocialLoading(null);
-    }
-  };
-
-  const handleAnonymousSignIn = async () => {
-    setSocialLoading('anonymous');
-    setError(null);
-    try {
-      const { error: anonError } = await supabase.auth.signInAnonymously();
-      if (anonError) throw anonError;
-      onSuccess();
-    } catch (err: any) {
-      setError("Guest access failed. Please try again.");
-    } finally {
-      setSocialLoading(null);
-    }
+    } catch (err: any) { setError(err.message); }
   };
 
   return (
-    <div className="flex flex-col h-full bg-background p-8 justify-center animate-in fade-in duration-700">
-      <div className="mb-10 text-center">
-        <div className="inline-flex items-center justify-center space-x-2 mb-2">
-            <Sparkles className="w-8 h-8 text-primary animate-pulse" />
-            <h1 className="text-5xl font-bold italic" style={{ color: COLORS.text }}>She Goes</h1>
+    <div className="flex flex-col h-full bg-background p-10 justify-center animate-slide-up-ritual">
+      <div className="mb-12 text-center space-y-4">
+        <div className="w-20 h-20 bg-white/40 border border-white rounded-[2rem] mx-auto flex items-center justify-center animate-breathing">
+            <Sparkles className="w-10 h-10 text-primary" strokeWidth={1.5} />
         </div>
-        <p className="text-charcoal opacity-60 font-medium text-lg">Small actions. Big lives.</p>
+        <div className="space-y-1">
+          <h1 className="text-5xl font-bold italic text-charcoal tracking-tight">She Goes</h1>
+          <p className="text-charcoal/30 font-black text-[10px] uppercase tracking-[0.4em]">Daily Momentum Lab</p>
+        </div>
       </div>
 
-      <div className="space-y-4 max-w-sm mx-auto w-full">
-        <div className="grid grid-cols-1 gap-3 mb-6">
-          <button
-            onClick={() => handleOAuthSignIn('apple')}
-            disabled={!!socialLoading || loading}
-            className="btn-energetic w-full py-4 rounded-2xl bg-black text-white shadow-sm flex items-center justify-center space-x-3 disabled:opacity-50"
-          >
-            {socialLoading === 'apple' ? (
-              <div className="spinner-gradient !border-t-white !border-r-white/30"></div>
-            ) : (
-              <>
-                <Apple className="w-5 h-5 fill-white" />
-                <span className="font-bold">Continue with Apple</span>
-              </>
-            )}
+      <div className="space-y-6 w-full max-w-sm mx-auto">
+        <div className="space-y-3">
+          <button onClick={() => handleOAuthSignIn('apple')} className="btn-luxury w-full py-5 rounded-full bg-black text-white font-bold flex items-center justify-center space-x-3 shadow-xl">
+            <Apple className="w-5 h-5 fill-white" />
+            <span>Claim Your Spot via Apple</span>
           </button>
-
-          <button
-            onClick={() => handleOAuthSignIn('google')}
-            disabled={!!socialLoading || loading}
-            className="btn-energetic w-full py-4 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center space-x-3 disabled:opacity-50"
-          >
-            {socialLoading === 'google' ? (
-              <div className="spinner-gradient"></div>
-            ) : (
-              <>
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
-                <span className="font-bold text-charcoal">Continue with Google</span>
-              </>
-            )}
-          </button>
-          
-          <button
-            onClick={handleAnonymousSignIn}
-            disabled={!!socialLoading || loading}
-            className="btn-energetic w-full py-4 rounded-2xl bg-white border border-gray-200 shadow-sm flex items-center justify-center space-x-3 disabled:opacity-50"
-          >
-            {socialLoading === 'anonymous' ? (
-              <div className="spinner-gradient"></div>
-            ) : (
-              <>
-                <User className="w-5 h-5 text-charcoal/40" />
-                <span className="font-bold text-charcoal/60">Continue as Guest</span>
-              </>
-            )}
+          <button onClick={() => handleOAuthSignIn('google')} className="btn-luxury w-full py-5 rounded-full bg-white border border-white text-charcoal font-bold flex items-center justify-center space-x-3 shadow-sm">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
+            <span>Join with Google</span>
           </button>
         </div>
 
-        <div className="relative flex items-center py-2">
-          <div className="flex-grow border-t border-charcoal/10"></div>
-          <span className="flex-shrink mx-4 text-charcoal/40 text-[10px] font-bold uppercase tracking-widest">or email</span>
-          <div className="flex-grow border-t border-charcoal/10"></div>
+        <div className="relative flex items-center py-4">
+          <div className="flex-grow border-t border-charcoal/5"></div>
+          <span className="flex-shrink mx-4 text-charcoal/20 text-[9px] font-black uppercase tracking-widest">or your own pace</span>
+          <div className="flex-grow border-t border-charcoal/5"></div>
         </div>
 
         <form onSubmit={handleEmailAuth} className="space-y-4">
           {!isLogin && (
-            <div className="relative group">
-              <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-charcoal/30 group-focus-within:text-primary transition-colors" />
-              <input
-                type="text"
-                placeholder="Full Name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border border-charcoal/5 shadow-sm focus:ring-2 focus:ring-primary outline-none transition-all"
-              />
-            </div>
+            <input type="text" placeholder="Your Name" value={name} onChange={(e) => setName(e.target.value)} required className="w-full px-8 py-5 rounded-full bg-white/60 border border-white focus:ring-2 focus:ring-primary outline-none font-medium" />
           )}
-          
-          <div className="relative group">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-charcoal/30 group-focus-within:text-primary transition-colors" />
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border border-charcoal/5 shadow-sm focus:ring-2 focus:ring-primary outline-none transition-all"
-            />
-          </div>
+          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full px-8 py-5 rounded-full bg-white/60 border border-white focus:ring-2 focus:ring-primary outline-none font-medium" />
+          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full px-8 py-5 rounded-full bg-white/60 border border-white focus:ring-2 focus:ring-primary outline-none font-medium" />
 
-          <div className="relative group">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-charcoal/30 group-focus-within:text-primary transition-colors" />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border border-charcoal/5 shadow-sm focus:ring-2 focus:ring-primary outline-none transition-all"
-            />
-          </div>
+          {error && <p className="text-red-500 text-xs text-center font-bold px-2">{error}</p>}
 
-          {error && <p className="text-red-500 text-xs text-center px-2 animate-in slide-in-from-top duration-300 font-medium">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={loading || !!socialLoading}
-            className="btn-energetic w-full py-4 rounded-2xl text-white font-bold text-lg flex items-center justify-center space-x-2 shadow-lg disabled:opacity-50"
-            style={{ backgroundColor: COLORS.primary }}
-          >
-            {loading ? (
-              <div className="spinner-gradient !border-t-white !border-r-white/30"></div>
-            ) : (
-              <>
-                <span>{isLogin ? 'Sign In' : 'Join the Vibe'}</span>
-                <ArrowRight className="w-5 h-5" />
-              </>
-            )}
+          <button type="submit" disabled={loading} className="btn-luxury w-full py-5 rounded-full text-white font-black text-lg shadow-xl bg-primary">
+            {loading ? "Aligning..." : (isLogin ? 'Enter' : 'Start Journey')}
           </button>
         </form>
 
-        <div className="mt-8 text-center">
-          <button
-            onClick={() => setIsLogin(!isLogin)}
-            className="text-charcoal/60 text-sm font-bold hover:text-primary transition-colors"
-          >
-            {isLogin ? "New here? Create an account" : "Already have an account? Sign in"}
+        <div className="pt-4 text-center">
+          <button onClick={() => setIsLogin(!isLogin)} className="text-charcoal/40 text-[10px] font-black uppercase tracking-widest">
+            {isLogin ? "Permission needed? Join us" : "Already built? Sign In"}
           </button>
         </div>
       </div>
       
-      <div className="mt-12 text-center opacity-30">
-        <p className="text-[10px] uppercase tracking-widest font-black">Gabby Beckford • She Goes</p>
+      <div className="mt-16 text-center opacity-10">
+        <p className="text-[9px] uppercase tracking-[0.3em] font-black">Gabby Beckford • She Goes 🥂</p>
       </div>
     </div>
   );

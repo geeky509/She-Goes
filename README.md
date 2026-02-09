@@ -1,20 +1,27 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
-# Run and deploy your AI Studio app
+# She Goes — Product Requirements Document
 
-This contains everything you need to run your app locally.
+## 🌟 Vision
+"She Goes" is a digital sanctuary for ambitious women. It is designed to bridge the gap between visualization and realization. By focusing on 1% daily actions, we eliminate the overwhelm of "Big Dreams" and replace it with the steady confidence of "Wins."
 
-View your app in AI Studio: https://ai.studio/apps/drive/1tCBjSGeSwFc4XSFQMYs2DgDUhC7pTP6o
+## 🚀 Key Features
+- **AI Micro-Actions**: Powered by Gemini 3 Flash to generate specific, low-friction tasks.
+- **Evidence Lab**: A history of successes that builds a "receipt" of personal growth.
+- **Native Experience**: Fully responsive 100dvh layout with iOS/Android safe-area support.
+- **Premium Dream Builder**: Includes Streak Protection and exclusive "Dream Drops."
 
-## Run Locally
+## 🎨 Design System
+- **Palette**: Warm Cream (Background), PacksLight Pink (Primary), Royal Purple (CTA), Deep Charcoal (Typography).
+- **Vibe**: Luxury Travel meets Personal Growth. Glossy, blurred, and energetic.
 
-**Prerequisites:**  Node.js
+## 🛠 Tech Stack
+- **Frontend**: React 19, Tailwind CSS, Lucide Icons.
+- **Backend**: Supabase (Auth/Database).
+- **AI Engine**: Google Gemini API.
 
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 📈 Roadmap
+- [x] Google/Apple Auth Integration.
+- [x] Gemini AI Integration for personalized steps.
+- [x] Native-style glassmorphism navigation.
+- [ ] Community "Pulse" for collective wins.
+- [ ] Push Notifications for "Vibe Checks."

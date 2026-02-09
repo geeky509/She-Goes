@@ -1,53 +1,53 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Plus, 
   History, 
-  Home as HomeIcon, 
   Settings, 
   ChevronRight,
   CheckCircle2,
-  Lock,
-  Share2,
   LogOut,
   Camera,
-  Trophy,
   Sparkles,
-  Zap,
-  Gift,
+  Waves,
+  BatteryMedium,
+  BatteryLow,
+  BatteryFull,
+  Quote,
   Star,
-  ShieldCheck,
-  ShieldAlert
+  Zap,
+  User,
+  Moon,
+  Sun,
+  Upload,
+  UserCircle
 } from 'lucide-react';
-import { Category, UserState, Dream, Win, MicroAction } from './types.ts';
-import { CATEGORIES, SUGGESTED_DREAMS, COLORS, GABBY_QUOTES, MILESTONES, MONTHLY_DREAM_DROPS } from './constants.tsx';
-import { generateMicroAction } from './services/geminiService.ts';
+import { Category, UserState, Dream, Win, MicroAction, EnergyLevel, AppTheme } from './types.ts';
+import { CATEGORIES, SUGGESTED_DREAMS, GABBY_QUOTES } from './constants.tsx';
+import { generateMicroAction, generateLegacyReflection, generateIdentityEvolution, generateDailyAffirmation } from './services/geminiService.ts';
 import { supabase } from './services/supabase.ts';
 import Confetti from './components/Confetti.tsx';
-import Paywall from './components/Paywall.tsx';
-import ShareModal from './components/ShareModal.tsx';
 import Auth from './components/Auth.tsx';
-import ProgressRecap from './components/ProgressRecap.tsx';
 
 const App: React.FC = () => {
   // --- STATE ---
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [userState, setUserState] = useState<UserState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'onboarding' | 'home' | 'wins' | 'settings'>('onboarding');
+  const [view, setView] = useState<'onboarding' | 'ritual' | 'evidence' | 'settings' | 'profile'>('onboarding');
   const [onboardingStep, setOnboardingStep] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [dailyAction, setDailyAction] = useState<MicroAction | null>(null);
   const [loadingAction, setLoadingAction] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
-  const [showRecap, setShowRecap] = useState(false);
-  const [showMilestonePopup, setShowMilestonePopup] = useState<number | null>(null);
-  const [shareData, setShareData] = useState<{ title: string; subtitle: string } | null>(null);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [energy, setEnergy] = useState<EnergyLevel>('medium');
+  const [showEnergyPicker, setShowEnergyPicker] = useState(true);
+  const [legacyReflection, setLegacyReflection] = useState<string | null>(null);
+  const [dailyAffirmation, setDailyAffirmation] = useState<string | null>(null);
+  const [identityTitle, setIdentityTitle] = useState<string>("Dreamer");
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- AUTH LISTENERS ---
+  // --- AUTH & INITIALIZATION ---
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       const user = session?.user || null;
@@ -56,669 +56,405 @@ const App: React.FC = () => {
         await loadUserData(user.id, user);
       } else {
         setUserState(null);
-        setLoading(false);
+        setTimeout(() => setLoading(false), 3000);
       }
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadUserData = async (uid: string, authUser: any) => {
-    setLoading(true);
-    try {
-      const { data: userDoc, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('uid', uid)
-        .maybeSingle();
+  useEffect(() => {
+    if (userState?.theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [userState?.theme]);
 
+  const loadUserData = async (uid: string, authUser: any) => {
+    try {
+      const { data: userDoc } = await supabase.from('users').select('*').eq('uid', uid).maybeSingle();
       if (userDoc) {
         setUserState({
           ...userDoc,
           displayName: authUser.user_metadata?.display_name || userDoc.displayName,
           photoURL: authUser.user_metadata?.avatar_url || userDoc.photoURL,
+          theme: userDoc.theme || 'light'
         });
-        setView(userDoc.hasOnboarded ? 'home' : 'onboarding');
+        
+        const activeDream = userDoc.dreams.find((d: any) => d.id === userDoc.activeDreamId);
+        if (activeDream) {
+          const [aff, title] = await Promise.all([
+            generateDailyAffirmation(activeDream.title),
+            generateIdentityEvolution(activeDream.title, userDoc.wins.slice(0, 3).map((w: any) => w.action))
+          ]);
+          setDailyAffirmation(aff);
+          setIdentityTitle(title);
+        }
+        setView(userDoc.hasOnboarded ? 'ritual' : 'onboarding');
       } else {
         const initialState: UserState = {
-          uid,
-          email: authUser.email,
-          displayName: authUser.user_metadata?.display_name || 'Adventurer',
-          photoURL: authUser.user_metadata?.avatar_url || null,
-          hasOnboarded: false,
-          activeDreamId: null,
-          dreams: [],
-          wins: [],
-          streak: 0,
-          lastCompletedDate: null,
-          isPremium: false,
-          streakProtectionEnabled: true,
-          milestonesReached: []
+          uid, email: authUser.email, displayName: authUser.user_metadata?.display_name || 'Adventurer', photoURL: null, hasOnboarded: false, activeDreamId: null, dreams: [], wins: [], streak: 0, lastCompletedDate: null, isPremium: false, streakProtectionEnabled: true, streakPausedUntil: null, milestonesReached: [], preferredEnergy: 'medium', theme: 'light'
         };
         await supabase.from('users').insert([initialState]);
         setUserState(initialState);
         setView('onboarding');
       }
-    } catch (err) {
-      console.error("Error loading user data:", err);
-    } finally {
-      setLoading(false);
+    } catch (err) { console.error(err); } finally { 
+      setTimeout(() => setLoading(false), 2500); 
     }
   };
-
-  // Paywall Trigger: Day 3
-  useEffect(() => {
-    if (userState && !userState.isPremium && userState.hasOnboarded && userState.dreams.length > 0) {
-      const createdDate = userState.dreams[0].createdAt;
-      const diffDays = Math.ceil((Date.now() - createdDate) / (1000 * 60 * 60 * 24));
-      if (diffDays >= 3) {
-        setShowPaywall(true);
-      }
-    }
-  }, [userState?.hasOnboarded, userState?.isPremium, view]);
-
-  useEffect(() => {
-    if (userState?.hasOnboarded && view === 'home') {
-      fetchDailyAction();
-    }
-  }, [userState?.activeDreamId, view]);
 
   const syncUserData = async (updates: Partial<UserState>) => {
     if (!currentUser || !userState) return;
-    const newState = { ...userState, ...updates };
-    setUserState(newState);
-    try {
-      await supabase.from('users').update(updates).eq('uid', currentUser.id);
-    } catch (err) {
-      console.error("Error syncing user data:", err);
+    setUserState(prev => prev ? ({ ...prev, ...updates }) : null);
+    await supabase.from('users').update(updates).eq('uid', currentUser.id);
+  };
+
+  const toggleTheme = () => {
+    const newTheme = userState?.theme === 'light' ? 'dark' : 'light';
+    syncUserData({ theme: newTheme });
+  };
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        syncUserData({ photoURL: reader.result as string });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const fetchDailyAction = async () => {
+  const fetchAction = async (energyLevel: EnergyLevel) => {
     if (!userState?.activeDreamId) return;
     const activeDream = userState.dreams.find(d => d.id === userState.activeDreamId);
     if (!activeDream) return;
-
     setLoadingAction(true);
-    const action = await generateMicroAction(activeDream.category, activeDream.title);
+    const action = await generateMicroAction(activeDream.category, activeDream.title, energyLevel);
     setDailyAction(action);
     setLoadingAction(false);
-  };
-
-  // --- ACTIONS ---
-  const handleSignOut = async () => {
-    setLoading(true);
-    await supabase.auth.signOut();
-    setView('onboarding');
-    setOnboardingStep(1);
-  };
-
-  const selectCategory = (cat: Category) => {
-    setSelectedCategory(cat);
-    setOnboardingStep(2);
-  };
-
-  const selectDream = async (title: string) => {
-    if (!userState) return;
-    const newDream: Dream = {
-      id: Math.random().toString(36).substr(2, 9),
-      category: selectedCategory!,
-      title,
-      createdAt: Date.now()
-    };
-    
-    await syncUserData({
-      hasOnboarded: true,
-      activeDreamId: newDream.id,
-      dreams: [...userState.dreams, newDream]
-    });
-    
-    setView('home');
+    setShowEnergyPicker(false);
   };
 
   const completeAction = async () => {
     const today = new Date().toISOString().split('T')[0];
     if (userState?.lastCompletedDate === today) return;
 
+    setLoadingAction(true);
+    const activeDream = userState!.dreams.find(d => d.id === userState!.activeDreamId);
+    const reflection = await generateLegacyReflection(activeDream?.title || "", dailyAction?.task || "");
+    setLegacyReflection(reflection);
+
+    if (navigator.vibrate) navigator.vibrate([15, 50, 15]);
     setShowConfetti(true);
+
     const newWin: Win = {
       id: Math.random().toString(36).substr(2, 9),
       dreamId: userState!.activeDreamId!,
       action: dailyAction?.task || "Showed up today",
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      energyLevel: energy,
+      reflection
     };
 
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    let newStreak = (userState!.lastCompletedDate === yesterdayStr) ? userState!.streak + 1 : 1;
     
-    const isConsecutive = userState!.lastCompletedDate === yesterdayStr;
-    let newStreak = 1;
-
-    if (isConsecutive) {
-      newStreak = userState!.streak + 1;
-    } else if (userState!.isPremium && userState!.streakProtectionEnabled && userState!.lastCompletedDate) {
-      const lastDate = new Date(userState!.lastCompletedDate);
-      const diffTime = Math.abs(new Date().getTime() - lastDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (diffDays <= 3) {
-        newStreak = userState!.streak + 1;
-      }
+    if (userState!.wins.length > 0 && (userState!.wins.length + 1) % 3 === 0) {
+      const newTitle = await generateIdentityEvolution(activeDream?.title || "", [newWin.action, ...userState!.wins.slice(0, 2).map(w => w.action)]);
+      setIdentityTitle(newTitle);
     }
 
-    const totalWins = userState!.wins.length + 1;
-    const milestone = MILESTONES.find(m => m === totalWins && !userState!.milestonesReached.includes(m));
-
-    const updates: Partial<UserState> = {
-      wins: [newWin, ...userState!.wins],
-      streak: newStreak,
-      lastCompletedDate: today
-    };
-
-    if (milestone) {
-      updates.milestonesReached = [...userState!.milestonesReached, milestone];
-      setShowMilestonePopup(milestone);
-    }
-    
-    await syncUserData(updates);
-
-    setTimeout(() => {
-      setShowConfetti(false);
-    }, 3000);
+    await syncUserData({ wins: [newWin, ...userState!.wins], streak: newStreak, lastCompletedDate: today });
+    setLoadingAction(false);
+    setTimeout(() => setShowConfetti(false), 4500);
   };
 
-  const addAnotherDream = () => {
-    if (!userState?.isPremium && userState!.dreams.length >= 1) {
-      setShowPaywall(true);
-    } else {
-      setOnboardingStep(1);
-      setView('onboarding');
-    }
-  };
-
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !currentUser) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Please upload an image smaller than 5MB.");
-      return;
-    }
-
-    setUploadingPhoto(true);
-    try {
-      const filePath = `profiles/${currentUser.id}`;
-      const { data, error } = await supabase.storage
-        .from('profiles')
-        .upload(filePath, file, { upsert: true });
-
-      if (error) throw error;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('profiles')
-        .getPublicUrl(filePath);
-      
-      await supabase.auth.updateUser({
-        data: { avatar_url: publicUrl }
-      });
-      await syncUserData({ photoURL: publicUrl });
-    } catch (err) {
-      console.error("Upload failed", err);
-      alert("Failed to upload image. Ensure the 'profiles' bucket exists.");
-    } finally {
-      setUploadingPhoto(false);
-    }
-  };
-
-  // --- RENDER HELPERS ---
-  const getInitial = () => {
-    if (!userState?.displayName) return '?';
-    return userState.displayName.charAt(0).toUpperCase();
-  };
-
-  const renderOnboarding = () => {
-    if (onboardingStep === 1) {
-      return (
-        <div className="flex flex-col h-full p-6 space-y-8 animate-in fade-in duration-500">
-          <div className="mt-12 text-center px-4">
-            <h1 className="text-4xl mb-2 italic" style={{ color: COLORS.text }}>
-              What's the dream, {userState?.displayName?.split(' ')[0] || 'Sis'}?
-            </h1>
-            <p className="text-charcoal/60 font-medium">Pick one category to focus on today.</p>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            {CATEGORIES.map(cat => (
-              <button
-                key={cat.name}
-                onClick={() => selectCategory(cat.name)}
-                className="btn-energetic flex flex-col items-center justify-center p-6 rounded-3xl bg-white shadow-sm border border-charcoal/5 aspect-square"
-              >
-                <div className="mb-4 p-4 rounded-full" style={{ backgroundColor: cat.color + '15' }}>
-                  <div style={{ color: cat.color }}>{cat.icon}</div>
-                </div>
-                <span className="font-bold text-center text-sm" style={{ color: COLORS.text }}>{cat.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
+  const RenderRitual = () => {
+    const isDone = userState?.lastCompletedDate === new Date().toISOString().split('T')[0];
     return (
-      <div className="flex flex-col h-full p-6 space-y-8 animate-in slide-in-from-right duration-300">
-        <div className="mt-12">
-          <button onClick={() => setOnboardingStep(1)} className="text-charcoal/40 font-bold mb-4 flex items-center text-[10px] uppercase tracking-widest">
-            ← Back
-          </button>
-          <h1 className="text-4xl mb-2 italic" style={{ color: COLORS.text }}>Choose your focus</h1>
-          <p className="text-charcoal/60 italic">"Go where you're celebrated, not tolerated."</p>
-        </div>
-        <div className="space-y-4">
-          {selectedCategory && SUGGESTED_DREAMS[selectedCategory].map(dream => (
-            <button
-              key={dream}
-              onClick={() => selectDream(dream)}
-              className="btn-energetic w-full p-6 text-left rounded-3xl bg-white shadow-sm border border-charcoal/5 flex justify-between items-center group"
-            >
-              <span className="text-lg font-bold" style={{ color: COLORS.text }}>{dream}</span>
-              <ChevronRight className="w-5 h-5 text-charcoal/20 group-hover:text-primary" />
-            </button>
-          ))}
-          <div className="pt-4">
-            <input 
-              placeholder="Or type your own..."
-              className="w-full p-6 rounded-3xl bg-white shadow-sm border border-charcoal/5 outline-none focus:ring-2 focus:ring-primary font-medium"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') selectDream((e.target as HTMLInputElement).value);
-              }}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderHome = () => {
-    const activeDream = userState?.dreams.find(d => d.id === userState.activeDreamId);
-    const today = new Date().toISOString().split('T')[0];
-    const isDone = userState?.lastCompletedDate === today;
-    const nextMilestone = MILESTONES.find(m => m > (userState?.wins.length || 0)) || 100;
-    const progress = ((userState?.wins.length || 0) / nextMilestone) * 100;
-
-    return (
-      <div className="flex flex-col h-full p-6 space-y-6 animate-in fade-in duration-500">
-        {showMilestonePopup && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm animate-in zoom-in duration-300">
-            <div className="bg-white rounded-[40px] p-8 text-center space-y-6 shadow-2xl w-full max-w-xs relative overflow-hidden">
-               <Trophy className="w-20 h-20 text-primary mx-auto animate-bounce" />
-               <div className="space-y-2">
-                 <h3 className="text-3xl font-bold italic" style={{ color: COLORS.text }}>{showMilestonePopup} Wins!</h3>
-                 <p className="text-charcoal/60">You're officially building momentum, sis. Look at you go.</p>
-               </div>
-               <button 
-                onClick={() => setShowMilestonePopup(null)}
-                className="btn-energetic w-full py-4 bg-primary text-white rounded-full font-bold shadow-lg"
-               >
-                 Keep Going
-               </button>
+      <div className="h-full p-8 flex flex-col items-center justify-center space-y-12 relative">
+        <div className="absolute top-16 w-full flex justify-between px-8 animate-fade-in-up">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-charcoal/20 dark:text-white/20 uppercase tracking-[0.4em]">{identityTitle}</span>
+            <div className="flex items-center space-x-2">
+              <span className="text-3xl font-black italic text-primary leading-none">{userState?.streak || 0}</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-pulse" />
             </div>
           </div>
-        )}
-
-        <div className="mt-8 flex justify-between items-start">
-          <div className="max-w-[70%]">
-            <h2 className="text-3xl font-bold leading-tight italic" style={{ color: COLORS.text }}>{isDone ? 'Win Logged!' : 'Today\'s Step'}</h2>
-            <p className="text-charcoal/50 font-bold truncate text-sm">{activeDream?.title || 'No dream active'}</p>
-          </div>
-          <div className="flex flex-col items-center">
-            <div className={`w-12 h-12 rounded-full border-2 flex items-center justify-center font-bold shadow-sm transition-colors bg-white ${userState?.isPremium ? 'border-primary text-primary' : 'border-cta text-cta'}`}>
-              {userState?.streak || 0}
-            </div>
-            <span className="text-[10px] uppercase font-black text-charcoal/40 mt-1 tracking-widest flex items-center">
-              Streak {userState?.isPremium && <Zap className="w-2 h-2 ml-1 fill-primary text-primary" />}
-            </span>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-charcoal/5">
-          <div className="flex justify-between text-[9px] uppercase font-black text-charcoal/40 mb-2 tracking-[0.2em]">
-            <span>Next Milestone: {nextMilestone} Wins</span>
-            <span>{Math.round(progress)}%</span>
-          </div>
-          <div className="h-2 w-full bg-charcoal/5 rounded-full overflow-hidden relative">
-            <div 
-              className={`h-full transition-all duration-1000 ease-out bg-primary`}
-              style={{ width: `${progress}%` }}
-            />
-            {!isDone && <div className="absolute inset-0 progress-bar-indeterminate opacity-30"></div>}
-          </div>
-        </div>
-
-        <div className={`relative flex-1 rounded-[40px] p-8 flex flex-col items-center justify-center text-center space-y-8 overflow-hidden transition-all duration-700 shadow-xl ${isDone ? 'bg-primary' : 'bg-white border-4 border-primary/10'}`}>
-          {loadingAction ? (
-            <div className="flex flex-col items-center space-y-4">
-              <div className="spinner-gradient"></div>
-              <p className="text-charcoal/40 text-sm font-bold italic">Gathering your power...</p>
-            </div>
-          ) : isDone ? (
-            <div className="animate-in zoom-in duration-500 flex flex-col items-center space-y-6">
-              <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-2xl animate-pulse-soft">
-                <CheckCircle2 className="w-12 h-12 text-primary" />
-              </div>
-              <div>
-                <h3 className="text-3xl font-bold text-white">Identity Shifted.</h3>
-                <p className="text-white/80 mt-2 px-4 italic font-medium">"{GABBY_QUOTES[Math.floor(Date.now() / 86400000) % GABBY_QUOTES.length]}"</p>
-              </div>
-              <div className="flex flex-col space-y-4 w-full pt-8 px-4">
-                <p className="text-xs font-black uppercase tracking-[0.3em] text-white/50">One step closer.</p>
-                <button 
-                  onClick={() => setShareData({ title: userState!.wins[0]?.action || "Taking steps", subtitle: activeDream?.title || "my dream" })}
-                  className="btn-energetic flex items-center justify-center space-x-2 bg-white text-primary py-4 rounded-full font-black shadow-lg"
-                >
-                  <Share2 className="w-5 h-5" />
-                  <span>Share Win</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center shadow-sm animate-bounce-subtle">
-                <Star className="w-10 h-10 text-primary fill-primary" />
-              </div>
-              <div className="space-y-4">
-                <h3 className="text-3xl leading-snug px-2 italic font-black text-charcoal">{dailyAction?.task}</h3>
-                <p className="text-charcoal/70 text-lg px-2 font-medium">{dailyAction?.encouragement}</p>
-              </div>
-              <button 
-                onClick={completeAction}
-                className="btn-energetic mt-4 px-10 py-5 bg-primary text-white rounded-full font-black text-lg shadow-xl"
-              >
-                I Did It! 🥂
-              </button>
-            </>
-          )}
-          
-          <div className="absolute top-0 right-0 p-4 opacity-5">
-            <Sparkles className="w-20 h-20" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-3xl p-6 flex items-center space-x-4 shadow-sm border border-charcoal/5">
-          <div className="w-12 h-12 rounded-full bg-primary/20 flex-shrink-0 overflow-hidden border-2 border-white flex items-center justify-center">
+          <button onClick={() => setView('profile')} className="btn-luxury w-12 h-12 rounded-full glass-silk overflow-hidden flex items-center justify-center border border-white/80">
             {userState?.photoURL ? (
-              <img src={userState.photoURL} alt="Profile" className="w-full h-full object-cover" />
+              <img src={userState.photoURL} className="w-full h-full object-cover" />
             ) : (
-              <span className="text-primary font-black text-xl">{getInitial()}</span>
+              <User className="w-5 h-5 text-charcoal/20 dark:text-white/20" />
             )}
-          </div>
-          <p className="text-sm text-charcoal/60 font-medium italic">"You are closer than you think. Keep taking up space."</p>
+          </button>
         </div>
-      </div>
-    );
-  };
 
-  const renderWins = () => (
-    <div className="flex flex-col h-full p-6 space-y-6 animate-in fade-in duration-500">
-      <div className="mt-8 flex justify-between items-end">
-        <div>
-          <h2 className="text-3xl font-bold italic text-charcoal">Your Wins</h2>
-          <p className="text-charcoal/50 font-medium italic">Evidence of your growth.</p>
-        </div>
-        <button 
-          onClick={() => setShareData({ title: `${userState?.wins.length} wins logged`, subtitle: "becoming my best self" })}
-          className="btn-energetic p-4 bg-white rounded-2xl shadow-sm text-charcoal/20 hover:text-primary"
-        >
-          <Share2 className="w-5 h-5" />
-        </button>
-      </div>
-      
-      <div className="flex-1 space-y-4 overflow-y-auto pb-20 px-1">
-        {!userState?.wins || userState.wins.length === 0 ? (
-          <div className="text-center py-20 flex flex-col items-center space-y-4">
-            <History className="w-12 h-12 text-charcoal/10" />
-            <p className="text-charcoal/40 font-bold">No wins yet. Let's get one today!</p>
+        {showEnergyPicker && !isDone ? (
+          <div className="w-full space-y-10 text-center animate-fade-in-up">
+            <div className="space-y-4">
+              <div className="p-4 glass-silk rounded-3xl inline-block mb-2 border border-white/40">
+                <p className="text-[10px] italic font-medium text-charcoal/70 dark:text-white/60 leading-relaxed max-w-[220px]">"{dailyAffirmation || GABBY_QUOTES[0]}"</p>
+              </div>
+              <h2 className="text-4xl font-bold italic text-charcoal dark:text-white tracking-tight">The Check-In</h2>
+            </div>
+            <div className="grid grid-cols-1 gap-4">
+              {[
+                { l: 'low', t: 'Gentle', icon: <BatteryLow />, c: 'bg-orange-100/50 text-orange-500' },
+                { l: 'medium', t: 'Focused', icon: <BatteryMedium />, c: 'bg-pink-100/50 text-pink-500' },
+                { l: 'high', t: 'Powerful', icon: <BatteryFull />, c: 'bg-purple-100/50 text-purple-500' }
+              ].map(lvl => (
+                <button key={lvl.l} onClick={() => { setEnergy(lvl.l as EnergyLevel); fetchAction(lvl.l as EnergyLevel); }} className="btn-luxury p-6 glass-silk rounded-[2.8rem] flex items-center space-x-6 text-left border border-white/60">
+                  <div className={`p-4 rounded-2xl ${lvl.c}`}>{lvl.icon}</div>
+                  <div>
+                    <h3 className="font-black text-charcoal dark:text-white text-base">{lvl.t} Ritual</h3>
+                    <p className="text-[9px] opacity-40 dark:opacity-20 uppercase tracking-widest font-black mt-0.5">Capacity: {lvl.l} energy</p>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
-          userState.wins.map((win, idx) => {
-            const dream = userState.dreams.find(d => d.id === win.dreamId);
-            return (
-              <div key={win.id} className="bg-white p-6 rounded-3xl shadow-sm border-l-8 group relative" style={{ borderLeftColor: idx === 0 ? COLORS.primary : COLORS.muted }}>
-                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => setShareData({ title: win.action, subtitle: dream?.title || "my dream" })} className="p-2 text-charcoal/10 hover:text-charcoal/40">
-                    <Share2 className="w-4 h-4" />
-                  </button>
-                </div>
-                <p className="text-[10px] text-charcoal/40 font-black mb-1 uppercase tracking-widest">
-                  {new Date(win.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                </p>
-                <h4 className="text-lg font-black text-charcoal pr-8">{win.action}</h4>
-                <p className="text-xs text-charcoal/50 font-bold">{dream?.title}</p>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-
-  const renderSettings = () => (
-    <div className="flex flex-col h-full p-6 space-y-6 animate-in fade-in duration-500">
-      <div className="mt-8">
-        <h2 className="text-3xl font-bold italic text-charcoal">Your Profile</h2>
-      </div>
-
-      <div className="bg-white rounded-[40px] p-8 flex flex-col items-center space-y-6 shadow-xl relative overflow-hidden group border-4 border-charcoal/5">
-        <div className="relative">
-          <div className={`w-36 h-36 rounded-full overflow-hidden border-4 transition-all duration-300 shadow-xl ${uploadingPhoto ? 'scale-95 grayscale' : 'border-background scale-100'}`}>
-            {userState?.photoURL ? (
-              <img 
-                src={userState.photoURL} 
-                className="w-full h-full object-cover" 
-                alt="Profile" 
-              />
-            ) : (
-              <div className="w-full h-full bg-background flex items-center justify-center text-primary text-5xl font-black">
-                {getInitial()}
-              </div>
-            )}
-            
-            {uploadingPhoto && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[2px] z-10">
-                 <div className="spinner-gradient"></div>
-              </div>
-            )}
-          </div>
-          
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingPhoto}
-            className="absolute bottom-1 right-1 p-4 bg-charcoal text-white rounded-full shadow-2xl active:scale-90 transition-all hover:bg-black disabled:opacity-50"
-          >
-            <Camera className="w-6 h-6" />
-          </button>
-          
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handlePhotoUpload} 
-            className="hidden" 
-            accept="image/*" 
-          />
-        </div>
-
-        <div className="text-center space-y-1">
-          <h3 className="text-2xl font-black text-charcoal">{userState?.displayName || 'Adventurer'}</h3>
-          <p className="text-charcoal/40 font-bold text-[10px] uppercase tracking-widest">{userState?.email || 'Guest Explorer'}</p>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        {userState?.isPremium && (
-          <>
-            <div className="bg-white rounded-3xl p-6 shadow-sm border border-charcoal/5 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-xl ${userState.streakProtectionEnabled ? 'bg-primary/10 text-primary' : 'bg-charcoal/5 text-charcoal/30'}`}>
-                    {userState.streakProtectionEnabled ? <ShieldCheck className="w-6 h-6" /> : <ShieldAlert className="w-6 h-6" />}
+          <div className={`w-full relative min-h-[500px] p-10 glass-silk rounded-[5rem] flex flex-col items-center justify-center text-center space-y-10 animate-fade-in-up border border-white/60 ${isDone ? 'ring-2 ring-primary/20' : ''}`}>
+            {loadingAction ? (
+               <div className="space-y-8 flex flex-col items-center">
+                  <div className="relative w-20 h-20">
+                    <div className="absolute inset-0 rounded-full border-2 border-primary/10" />
+                    <div className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                    <div className="absolute inset-4 rounded-full border-2 border-cta/20 border-b-cta animate-spin [animation-duration:1.5s]" />
                   </div>
-                  <div>
-                    <h3 className="font-black text-sm text-charcoal uppercase tracking-widest">Streak Protection</h3>
-                    <p className="text-[10px] text-charcoal/40 font-bold">Safeguard your momentum</p>
+                  <p className="text-[10px] font-black text-primary/40 uppercase tracking-[0.5em] animate-pulse">Designing Tomorrow</p>
+               </div>
+            ) : isDone ? (
+               <div className="space-y-10 animate-fade-in-up">
+                  <div className="w-20 h-20 bg-primary/5 rounded-[2.5rem] flex items-center justify-center mx-auto shadow-inner">
+                    <CheckCircle2 className="w-10 h-10 text-primary" strokeWidth={1.5} />
                   </div>
-                </div>
-                <button 
-                  onClick={() => syncUserData({ streakProtectionEnabled: !userState.streakProtectionEnabled })}
-                  className={`w-14 h-8 rounded-full p-1 transition-colors duration-300 relative ${userState.streakProtectionEnabled ? 'bg-primary' : 'bg-charcoal/20'}`}
-                >
-                  <div className={`w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ${userState.streakProtectionEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
-                </button>
-              </div>
-              <p className="text-[11px] text-charcoal/60 leading-relaxed font-medium italic">
-                Active protection keeps your streak alive for up to 3 days if you miss a check-in. Guilt-free growth.
-              </p>
-            </div>
-
-            <div className="bg-white rounded-3xl p-6 shadow-sm space-y-4 border border-charcoal/5">
-              <div className="flex items-center space-x-2">
-                  <Gift className="w-5 h-5 text-primary" />
-                  <h3 className="font-black text-[10px] uppercase tracking-widest text-charcoal/30">Dream Drops</h3>
-              </div>
-              <div className="space-y-3">
-                  {MONTHLY_DREAM_DROPS.map(drop => (
-                    <div key={drop.id} className="p-4 bg-background rounded-2xl border border-primary/10">
-                      <h4 className="font-black text-primary text-sm">{drop.title}</h4>
-                      <p className="text-[11px] text-charcoal/70 mt-1 font-medium">{drop.description}</p>
+                  <div className="space-y-6">
+                    <h3 className="text-3xl font-black italic text-charcoal dark:text-white leading-tight">Identity: Claimed.</h3>
+                    <div className="p-8 glass-silk rounded-[3rem] italic text-sm text-charcoal/60 dark:text-white/50 leading-relaxed relative bg-white/20">
+                      <Quote className="w-4 h-4 text-primary opacity-20 absolute -top-1 -left-1" />
+                      "{legacyReflection || userState?.wins[0]?.reflection}"
                     </div>
-                  ))}
-              </div>
-            </div>
-          </>
-        )}
-
-        <div className="bg-white p-6 rounded-3xl border border-charcoal/10 shadow-sm space-y-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              <span className="font-black text-primary text-sm uppercase tracking-widest">Dream Builder</span>
-            </div>
-            {userState?.isPremium ? (
-              <span className="bg-primary text-white text-[9px] px-3 py-1 rounded-full uppercase font-black tracking-widest">Active</span>
+                  </div>
+                  <p className="text-[9px] text-charcoal/30 dark:text-white/20 font-black uppercase tracking-[0.4em]">The work of becoming is done for today. 🥂</p>
+               </div>
             ) : (
-              <button onClick={() => setShowPaywall(true)} className="text-[10px] underline text-primary font-black uppercase tracking-widest">Upgrade</button>
+              <>
+                <div className="space-y-10">
+                  <div className="w-24 h-24 bg-primary/5 rounded-[3rem] flex items-center justify-center mx-auto animate-float-slow shadow-sm">
+                    <Sparkles className="w-12 h-12 text-primary opacity-50" strokeWidth={1.5} />
+                  </div>
+                  <div className="space-y-5 px-2">
+                    <h3 className="text-2xl font-black text-charcoal dark:text-white italic leading-snug">{dailyAction?.task}</h3>
+                    <p className="text-charcoal/40 dark:text-white/40 text-sm font-medium leading-relaxed">{dailyAction?.encouragement}</p>
+                  </div>
+                </div>
+                <button onClick={completeAction} className="btn-luxury w-full py-7 bg-charcoal dark:bg-primary text-white rounded-full font-black text-lg shadow-[0_20px_40px_rgba(31,41,55,0.2)]">
+                  I Went Today.
+                </button>
+                <div className="pt-2 text-[9px] font-black text-primary/30 uppercase tracking-[0.4em]">Hold: {dailyAction?.braveNote}</div>
+              </>
             )}
           </div>
-          <p className="text-xs text-charcoal/60 font-medium italic">Building big lives, with care and consistency.</p>
-          
-          {userState?.isPremium && (
-            <button 
-              onClick={() => setShowRecap(true)}
-              className="btn-energetic w-full py-4 bg-primary text-white rounded-2xl font-black text-sm flex items-center justify-center space-x-3 shadow-md"
-            >
-              <Trophy className="w-5 h-5" />
-              <span>Full Progress Recap</span>
-            </button>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 gap-3">
-          <button 
-            onClick={addAnotherDream}
-            className="btn-energetic w-full p-6 bg-white rounded-3xl text-left flex items-center justify-between shadow-sm border border-charcoal/5"
-          >
-            <div className="flex items-center space-x-4">
-              <Plus className="w-6 h-6 text-charcoal/20" />
-              <span className="font-black text-charcoal text-sm uppercase tracking-widest">New Dream</span>
-            </div>
-            {!userState?.isPremium && (userState?.dreams?.length || 0) >= 1 && <Lock className="w-4 h-4 text-charcoal/20" />}
-          </button>
-
-          <button 
-            onClick={handleSignOut}
-            className="btn-energetic w-full p-6 bg-white rounded-3xl text-left flex items-center space-x-4 shadow-sm text-red-500 border border-charcoal/5"
-          >
-            <LogOut className="w-6 h-6" />
-            <span className="font-black text-sm uppercase tracking-widest">Sign Out</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (loading) {
-    return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-background space-y-4">
-        <div className="spinner-gradient"></div>
-        <p className="text-primary font-black uppercase tracking-[0.3em] animate-pulse">Dreaming...</p>
+        )}
       </div>
     );
-  }
+  };
 
-  if (!currentUser) {
-    return <Auth onSuccess={() => {}} />;
-  }
+  const RenderLoading = () => (
+    <div className="h-full flex flex-col items-center justify-center relative bg-background dark:bg-darkbg overflow-hidden transition-colors duration-500">
+        <div className="pulse-orb animate-pulse-bloom" />
+        <div className="pulse-orb animate-pulse-bloom [animation-delay:2s]" />
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="star-particle animate-orbit" style={{ 
+            animationDelay: `${i * 3}s`,
+            left: '50%', top: '50%', marginTop: '-2px', marginLeft: '-2px'
+          }} />
+        ))}
+        <div className="z-10 text-center space-y-8 animate-fade-in-up">
+            <div className="relative">
+              <h1 className="text-5xl font-bold italic text-charcoal dark:text-white tracking-tighter">She Goes</h1>
+              <div className="absolute -top-4 -right-4">
+                <Zap className="w-6 h-6 text-primary fill-primary opacity-20 animate-pulse" />
+              </div>
+            </div>
+            <div className="flex flex-col items-center space-y-3">
+                <div className="w-12 h-px bg-charcoal/5 dark:bg-white/5" />
+                <p className="text-[9px] font-black text-charcoal/20 dark:text-white/20 uppercase tracking-[0.6em] animate-pulse">Aligning Your Momentum</p>
+            </div>
+        </div>
+    </div>
+  );
+
+  if (loading) return <RenderLoading />;
+  if (!currentUser) return <Auth onSuccess={() => {}} />;
 
   return (
-    <div className="h-screen w-full max-w-md mx-auto relative flex flex-col bg-background shadow-2xl overflow-hidden">
+    <div className="app-container app-scroll relative">
+      <div className="fixed inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-cta/5 pointer-events-none" />
       <Confetti active={showConfetti} />
-      
-      {showPaywall && (
-        <Paywall 
-          onClose={() => setShowPaywall(false)} 
-          onSubscribe={() => {
-            syncUserData({ isPremium: true });
-            setShowPaywall(false);
-          }}
-        />
-      )}
 
-      {showRecap && userState && (
-        <ProgressRecap 
-          wins={userState.wins}
-          streak={userState.streak}
-          onClose={() => setShowRecap(false)}
-        />
-      )}
+      <main className="flex-1 relative z-10 overflow-y-auto no-scrollbar">
+        {view === 'onboarding' ? (
+          <div className="h-full flex flex-col p-8 pt-24 animate-fade-in-up">
+            {onboardingStep === 1 ? (
+              <div className="space-y-12">
+                <div className="text-center space-y-4">
+                   <h1 className="text-5xl font-bold italic text-charcoal dark:text-white tracking-tight">The Vision</h1>
+                   <p className="text-charcoal/30 dark:text-white/30 font-black uppercase tracking-[0.4em] text-[10px]">What are we prioritizing?</p>
+                </div>
+                <div className="grid grid-cols-2 gap-5">
+                  {CATEGORIES.map(cat => (
+                    <button key={cat.name} onClick={() => { setSelectedCategory(cat.name); setOnboardingStep(2); }} className="btn-luxury flex flex-col items-center justify-center p-8 glass-silk rounded-[3.5rem] aspect-square border border-white/60">
+                      <div className="p-5 bg-white/90 dark:bg-white/10 rounded-full mb-4 shadow-sm" style={{ color: cat.color }}>{cat.icon}</div>
+                      <span className="font-black text-center text-[10px] uppercase tracking-widest text-charcoal dark:text-white">{cat.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-10">
+                 <button onClick={() => setOnboardingStep(1)} className="btn-luxury text-charcoal/20 dark:text-white/20 text-[10px] font-black uppercase tracking-[0.4em] flex items-center"><ChevronRight className="w-4 h-4 rotate-180 mr-1" /> Refine Focus</button>
+                 <h1 className="text-4xl font-bold italic text-charcoal dark:text-white leading-tight">Name the Dream.</h1>
+                 <div className="space-y-4">
+                   {selectedCategory && SUGGESTED_DREAMS[selectedCategory].map(dream => (
+                     <button key={dream} onClick={async () => {
+                       const newDream = { id: Math.random().toString(36).substr(2,9), category: selectedCategory!, title: dream, createdAt: Date.now() };
+                       await syncUserData({ hasOnboarded: true, activeDreamId: newDream.id, dreams: [newDream] });
+                       setView('ritual');
+                     }} className="btn-luxury w-full p-10 text-left rounded-[3rem] glass-silk text-charcoal dark:text-white font-black text-xl leading-tight border border-white/60">{dream}</button>
+                   ))}
+                 </div>
+              </div>
+            )}
+          </div>
+        ) : view === 'ritual' ? <RenderRitual /> :
+         view === 'evidence' ? (
+           <div className="h-full p-8 pt-28 flex flex-col space-y-12 overflow-y-auto no-scrollbar pb-32 animate-fade-in-up">
+             <div className="space-y-3">
+               <h1 className="text-4xl font-bold italic text-charcoal dark:text-white">The Evidence</h1>
+               <p className="text-charcoal/30 dark:text-white/30 font-black text-[10px] uppercase tracking-[0.4em]">Proof that you are becoming her</p>
+             </div>
+             <div className="space-y-6">
+               {userState?.wins.map((win, idx) => (
+                 <div key={win.id} className="p-10 glass-silk rounded-[4rem] space-y-6 border border-white/60 relative overflow-hidden">
+                   <div className="absolute top-0 right-0 p-4 opacity-5">
+                      <Star className="w-20 h-20 text-primary rotate-12" />
+                   </div>
+                   <div className="flex justify-between items-center relative z-10">
+                     <span className="text-[10px] font-black text-charcoal/20 dark:text-white/20 uppercase tracking-widest leading-none">{new Date(win.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                     <div className="w-2 h-2 rounded-full bg-primary/20" />
+                   </div>
+                   <h4 className="text-2xl font-black text-charcoal dark:text-white italic leading-snug relative z-10">"{win.action}"</h4>
+                   {win.reflection && (
+                     <div className="pt-6 border-t border-charcoal/5 dark:border-white/5 relative z-10">
+                        <p className="text-[13px] text-charcoal/50 dark:text-white/50 leading-relaxed font-medium italic">"{win.reflection}"</p>
+                     </div>
+                   )}
+                 </div>
+               ))}
+               {!userState?.wins.length && <div className="py-32 text-center text-charcoal/5 dark:text-white/5 font-black uppercase tracking-[1em]">Empty Space.</div>}
+             </div>
+           </div>
+         ) : view === 'profile' ? (
+           <div className="h-full p-8 pt-28 flex flex-col space-y-8 animate-fade-in-up pb-32">
+             <div className="glass-silk rounded-[5rem] p-12 flex flex-col items-center space-y-8 border border-white/60 relative overflow-hidden">
+                <div className="absolute top-4 right-8">
+                   <button onClick={toggleTheme} className="btn-luxury p-3 glass-silk rounded-full border border-white/40">
+                      {userState?.theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-primary" />}
+                   </button>
+                </div>
 
-      {shareData && (
-        <ShareModal 
-          title={shareData.title}
-          subtitle={shareData.subtitle}
-          onClose={() => setShareData(null)}
-        />
-      )}
+               <div className="relative group">
+                 <div className="w-40 h-40 rounded-full border-8 border-white dark:border-slate-800 bg-stone-50 dark:bg-slate-900 overflow-hidden relative shadow-2xl transition-transform duration-500 group-hover:scale-105">
+                    {userState?.photoURL ? (
+                      <img src={userState.photoURL} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-stone-50 dark:bg-slate-800">
+                        <UserCircle className="w-20 h-20 text-stone-200 dark:text-slate-700" />
+                      </div>
+                    )}
+                 </div>
+                 <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="btn-luxury absolute bottom-1 right-1 p-3 bg-primary text-white rounded-full shadow-xl border-4 border-white dark:border-slate-800"
+                 >
+                   <Camera className="w-5 h-5" />
+                 </button>
+                 <input type="file" ref={fileInputRef} onChange={handleAvatarUpload} className="hidden" accept="image/*" />
+               </div>
 
-      <div className="flex-1 overflow-y-auto pb-24 scroll-smooth">
-        {view === 'onboarding' ? renderOnboarding() :
-         view === 'home' ? renderHome() :
-         view === 'wins' ? renderWins() :
-         renderSettings()}
-      </div>
+               <div className="text-center space-y-1">
+                  <h2 className="text-3xl font-black italic text-charcoal dark:text-white tracking-tight">{userState?.displayName}</h2>
+                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">{identityTitle}</p>
+               </div>
+             </div>
+
+             <div className="space-y-4">
+               <button onClick={() => { syncUserData({ hasOnboarded: false }); setOnboardingStep(1); setView('onboarding'); }} className="btn-luxury w-full p-8 glass-silk rounded-[2.5rem] text-left font-black text-charcoal dark:text-white uppercase tracking-[0.2em] text-[11px] flex justify-between items-center border border-white/60">
+                  Refocus Path <ChevronRight className="w-4 h-4 opacity-20" />
+               </button>
+               <button onClick={() => supabase.auth.signOut()} className="btn-luxury w-full p-8 bg-red-50/30 dark:bg-red-900/20 text-red-400 rounded-[2.5rem] text-left font-black uppercase tracking-[0.2em] text-[11px] flex items-center space-x-5 border border-red-100/30 dark:border-red-900/30">
+                  <LogOut className="w-5 h-5 opacity-40" /> <span>Logout</span>
+               </button>
+             </div>
+           </div>
+         ) : (
+           <div className="h-full p-8 pt-28 flex flex-col space-y-8 animate-fade-in-up">
+              <div className="space-y-3">
+                <h1 className="text-4xl font-bold italic text-charcoal dark:text-white">Settings</h1>
+                <p className="text-charcoal/30 dark:text-white/30 font-black text-[10px] uppercase tracking-[0.4em]">Personalize your ritual</p>
+              </div>
+              <div className="space-y-4">
+                 <div className="p-8 glass-silk rounded-[3rem] border border-white/60 flex justify-between items-center">
+                    <div>
+                       <h4 className="font-black text-charcoal dark:text-white">Appearance</h4>
+                       <p className="text-xs text-charcoal/40 dark:text-white/40">Switch between light and dark</p>
+                    </div>
+                    <button onClick={toggleTheme} className="btn-luxury px-6 py-3 bg-primary text-white font-black rounded-full shadow-lg">
+                       {userState?.theme === 'dark' ? 'Light' : 'Dark'}
+                    </button>
+                 </div>
+                 <div className="p-8 glass-silk rounded-[3rem] border border-white/60 flex justify-between items-center">
+                    <div>
+                       <h4 className="font-black text-charcoal dark:text-white">Streak Guard</h4>
+                       <p className="text-xs text-charcoal/40 dark:text-white/40">Keep momentum even if you miss</p>
+                    </div>
+                    <div className="w-12 h-6 bg-primary/20 rounded-full relative">
+                       <div className="absolute top-1 left-1 w-4 h-4 bg-primary rounded-full shadow-sm" />
+                    </div>
+                 </div>
+              </div>
+           </div>
+         )}
+      </main>
 
       {userState?.hasOnboarded && view !== 'onboarding' && (
-        <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-charcoal/5 flex items-center justify-around px-8 safe-area-bottom h-24 z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
-          <button 
-            onClick={() => setView('home')}
-            className={`flex flex-col items-center space-y-1 transition-all duration-300 ${view === 'home' ? 'text-primary scale-110' : 'text-charcoal/20 hover:text-charcoal/40'}`}
-          >
-            <HomeIcon className={`w-7 h-7 ${view === 'home' ? 'fill-primary/10' : ''}`} />
-            <span className="text-[9px] font-black uppercase tracking-widest">Home</span>
-          </button>
-          
-          <button 
-            onClick={() => setView('wins')}
-            className={`flex flex-col items-center space-y-1 transition-all duration-300 ${view === 'wins' ? 'text-primary scale-110' : 'text-charcoal/20 hover:text-charcoal/40'}`}
-          >
-            <History className="w-7 h-7" />
-            <span className="text-[9px] font-black uppercase tracking-widest">Wins</span>
-          </button>
-          
-          <button 
-            onClick={() => setView('settings')}
-            className={`flex flex-col items-center space-y-1 transition-all duration-300 ${view === 'settings' ? 'text-primary scale-110' : 'text-charcoal/20 hover:text-charcoal/40'}`}
-          >
-            <Settings className={`w-7 h-7 ${view === 'settings' ? 'animate-spin-slow' : ''}`} />
-            <span className="text-[9px] font-black uppercase tracking-widest">Profile</span>
-          </button>
-        </div>
+        <nav className="fixed bottom-0 left-0 right-0 glass-silk border-t border-white/50 dark:border-white/10 safe-bottom flex items-center justify-around px-4 z-20 h-auto">
+          {[
+            { v: 'ritual', i: <Waves />, l: 'Ritual' },
+            { v: 'evidence', i: <History />, l: 'Evidence' },
+            { v: 'settings', i: <Settings />, l: 'Settings' },
+            { v: 'profile', i: <User />, l: 'Me' }
+          ].map(tab => (
+            <button 
+              key={tab.v} 
+              onClick={() => { setView(tab.v as any); if(tab.v === 'ritual') setShowEnergyPicker(true); }} 
+              className={`btn-luxury flex flex-col items-center space-y-1.5 transition-all py-5 px-4 min-w-[70px] ${view === tab.v ? 'text-primary' : 'text-charcoal/30 dark:text-white/30'}`}
+            >
+              <div className={`${view === tab.v ? 'scale-125' : ''} transition-all duration-500`}>
+                 {/* Fixed: Use React.ReactElement<any> to allow strokeWidth property in cloneElement */}
+                 {React.cloneElement(tab.i as React.ReactElement<any>, { strokeWidth: view === tab.v ? 2.5 : 2 })}
+              </div>
+              <span className={`text-[8px] font-black uppercase tracking-[0.3em] transition-opacity ${view === tab.v ? 'opacity-100' : 'opacity-40'}`}>
+                {tab.l}
+              </span>
+            </button>
+          ))}
+        </nav>
       )}
     </div>
   );

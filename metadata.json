@@ -1,6 +1,10 @@
 {
   "name": "She Goes",
-  "description": "A mindset + micro-action app for ambitious women to turn big dreams into real action through daily, emotionally safe steps. Designed for Gabby Beckford (PacksLight).",
+  "short_name": "SheGoes",
+  "description": "The micro-action app for ambitious women. Turn big dreams into daily momentum with AI-powered, emotionally safe steps by Gabby Beckford.",
+  "theme_color": "#EC4899",
+  "background_color": "#FEF3C7",
+  "display": "standalone",
   "requestFramePermissions": [
     "camera"
   ]

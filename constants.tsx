@@ -4,56 +4,35 @@ import { Plane, Briefcase, Sparkles, Home, Heart } from 'lucide-react';
 import { Category, DreamDrop } from './types';
 
 export const COLORS = {
-  primary: '#EC4899',   // Pink
-  cta: '#8B5CF6',       // Purple
+  primary: '#EC4899',   // PacksLight Pink
+  cta: '#8B5CF6',       // Royal Purple
   background: '#FEF3C7', // Warm Cream
   text: '#1F2937',      // Charcoal
   accent: '#F59E0B',    // Orange
+  softPink: '#FFD1E3',
   white: '#FFFFFF',
-  muted: '#FDE68A'      // Lighter yellow/cream
 };
 
 export const CATEGORIES: { name: Category; icon: React.ReactNode; color: string }[] = [
-  { name: 'Travel', icon: <Plane className="w-6 h-6" />, color: '#EC4899' },
-  { name: 'Career & Money', icon: <Briefcase className="w-6 h-6" />, color: '#8B5CF6' },
-  { name: 'Confidence', icon: <Sparkles className="w-6 h-6" />, color: '#F59E0B' },
-  { name: 'Lifestyle Upgrade', icon: <Home className="w-6 h-6" />, color: '#1F2937' },
+  { name: 'Travel', icon: <Plane className="w-6 h-6" strokeWidth={1.5} />, color: '#EC4899' },
+  { name: 'Career & Money', icon: <Briefcase className="w-6 h-6" strokeWidth={1.5} />, color: '#8B5CF6' },
+  { name: 'Confidence', icon: <Sparkles className="w-6 h-6" strokeWidth={1.5} />, color: '#F59E0B' },
+  { name: 'Lifestyle Upgrade', icon: <Home className="w-6 h-6" strokeWidth={1.5} />, color: '#1F2937' },
 ];
 
 export const SUGGESTED_DREAMS: Record<Category, string[]> = {
-  'Travel': ['Solo trip to Italy', 'Move to a new city', 'First business class flight', 'Bucket list safari'],
-  'Career & Money': ['Negotiate my salary', 'Start a side hustle', 'Save my first $10k', 'Launch a personal brand'],
-  'Confidence': ['Speak at a conference', 'Master a new skill', 'Say "no" more often', 'Wear what makes me feel bold'],
-  'Lifestyle Upgrade': ['Design my dream home', 'Host a luxury dinner party', 'Join a private club', 'Prioritize daily rest'],
+  'Travel': ['Living as a digital nomad in Lisbon', 'First solo luxury getaway', 'Booking a multi-country train tour', 'Starting a travel fund for my parents'],
+  'Career & Money': ['Launching my creative studio', 'Negotiating for full remote work', 'Reaching my first $50k net worth', 'Getting paid to speak on stage'],
+  'Confidence': ['Reclaiming my voice in meetings', 'Building a capsule wardrobe that feels like ME', 'Setting radical boundaries with family', 'Mastering the art of saying "no"'],
+  'Lifestyle Upgrade': ['Finding my perfect morning ritual', 'Upgrading my home office to a sanctuary', 'Investing in daily rest and wellness', 'Hosting curated dinner parties'],
 };
 
 export const GABBY_QUOTES = [
-  "You've got this, sis. ✨",
-  "Your dream is valid. Let's move towards it! 🚀",
-  "Permission granted. Now, let's take one step. 💅",
-  "Growth happens in the small moments. 🌱",
-  "Worldly, wealthy, and well-rested. That's the vibe. 🥂"
+  "You are the authority of your own joy.",
+  "Permission is already granted. Proceed.",
+  "Worldly, wealthy, and well-rested. That's the only plan.",
+  "Small steps aren't just progress. They are proof.",
+  "You don't have to be 'ready' to be worthy."
 ];
 
-export const MILESTONES = [3, 7, 15, 30, 50, 100];
-
-export const MONTHLY_DREAM_DROPS: DreamDrop[] = [
-  {
-    id: 'dd-1',
-    title: 'The Wealthy Woman Audit',
-    description: 'Look at your bank statement. Not with shame, but with curiosity. Where is your money going? Does it serve your dream?',
-    category: 'Career & Money'
-  },
-  {
-    id: 'dd-2',
-    title: 'The Solo Date Challenge',
-    description: 'Take yourself out. No phone, just you and your thoughts. Practice being your own best company.',
-    category: 'Confidence'
-  },
-  {
-    id: 'dd-3',
-    title: 'The Passport Refresh',
-    description: 'Check your expiration date. Even if you don’t have a trip booked yet, verify your status. Readiness is half the battle.',
-    category: 'Travel'
-  }
-];
+export const MILESTONES = [3, 7, 14, 30, 90, 365];

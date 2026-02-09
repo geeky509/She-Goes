@@ -1,5 +1,7 @@
 
 export type Category = 'Travel' | 'Career & Money' | 'Confidence' | 'Lifestyle Upgrade';
+export type EnergyLevel = 'low' | 'medium' | 'high';
+export type AppTheme = 'light' | 'dark';
 
 export interface Dream {
   id: string;
@@ -13,6 +15,8 @@ export interface Win {
   dreamId: string;
   action: string;
   timestamp: number;
+  reflection?: string;
+  energyLevel?: EnergyLevel;
 }
 
 export interface UserState {
@@ -25,15 +29,19 @@ export interface UserState {
   dreams: Dream[];
   wins: Win[];
   streak: number;
-  lastCompletedDate: string | null; // ISO Date YYYY-MM-DD
+  lastCompletedDate: string | null; 
   isPremium: boolean;
   streakProtectionEnabled: boolean;
-  milestonesReached: number[]; // e.g. [3, 7, 15]
+  streakPausedUntil: string | null; // ISO Date for grace period
+  milestonesReached: number[];
+  preferredEnergy: EnergyLevel;
+  theme: AppTheme;
 }
 
 export interface MicroAction {
   task: string;
   encouragement: string;
+  braveNote?: string;
 }
 
 export interface DreamDrop {
