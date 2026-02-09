@@ -7,34 +7,73 @@ const getAIClient = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
-export const generateMicroAction = async (category: Category, dream: string, energy: EnergyLevel = 'medium'): Promise<MicroAction> => {
+/**
+ * Generates a personalized micro-action based on the user's dream, category, 
+ * current energy level, and their evolving identity.
+ */
+export const generateMicroAction = async (
+  category: Category, 
+  dream: string, 
+  energy: EnergyLevel = 'medium',
+  identityTitle: string = "Dreamer"
+): Promise<MicroAction> => {
   try {
     const ai = getAIClient();
+    
+    // Detailed context for the AI to ensure the action is appropriate for the energy level.
     const energyContext = {
-      low: "very low effort, digital-only, 2 minutes max (e.g., Save one post, send one text).",
-      medium: "moderate effort, 5-10 minutes (e.g., Draft an email, look up a specific price).",
-      high: "active effort, 15 minutes (e.g., Make a phone call, organize one drawer, book a meeting)."
+      low: {
+        description: "very low effort, digital-only, 'soft-life' energy. 2 minutes max.",
+        tone: "extremely gentle, validating, and restorative.",
+        examples: "Save one inspiring photo, send one 'thank you' text, or simply delete one distraction."
+      },
+      medium: {
+        description: "moderate effort, focused but manageable. 5-10 minutes.",
+        tone: "steady, encouraging, and clear.",
+        examples: "Draft a short email, look up a specific resource, or organize one digital folder."
+      },
+      high: {
+        description: "active effort, 'CEO' energy, ready to take up space. 15-20 minutes.",
+        tone: "bold, high-performance, and visionary.",
+        examples: "Make a critical phone call, record a short pitch video, or finalize a project plan."
+      }
     }[energy];
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `You are Gabby Beckford (PacksLight). You are a luxurious, worldly, and encouraging mentor for ambitious women.
-      The user is dreaming of: "${dream}" (${category}).
-      Today, their energy level is ${energy.toUpperCase()}. 
-      Provide ONE micro-action that is ${energyContext}.
       
-      Requirements:
-      - Framing: Brave, invitational, and specific.
-      - Tone: Warm, sisterly, luxurious.
-      - Response Format: JSON with "task", "encouragement", and "braveNote".`,
+      USER CONTEXT:
+      - Current Identity: "${identityTitle}"
+      - Ultimate Dream: "${dream}" (${category})
+      - Energy Today: ${energy.toUpperCase()} (${energyContext.description})
+      
+      YOUR GOAL:
+      Provide ONE specific micro-action that aligns with their dream and fits their energy level perfectly.
+      
+      TONE REQUIREMENTS:
+      - Be ${energyContext.tone}
+      - Use "sisterly" luxury language.
+      - Examples to guide you: ${energyContext.examples}
+      
+      Response Format: JSON with "task", "encouragement", and "braveNote".`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            task: { type: Type.STRING },
-            encouragement: { type: Type.STRING },
-            braveNote: { type: Type.STRING }
+            task: { 
+              type: Type.STRING,
+              description: "The specific action for the user to take." 
+            },
+            encouragement: { 
+              type: Type.STRING,
+              description: "A short, luxurious sentence explaining why this matters." 
+            },
+            braveNote: { 
+              type: Type.STRING,
+              description: "A tiny 'dare' or mindset shift to hold onto." 
+            }
           },
           required: ["task", "encouragement", "braveNote"]
         }
@@ -43,11 +82,11 @@ export const generateMicroAction = async (category: Category, dream: string, ene
 
     return JSON.parse(response.text.trim()) as MicroAction;
   } catch (error) {
-    console.error("Gemini failed:", error);
+    console.error("Gemini failed to generate action:", error);
     return {
-      task: "Sit in silence for 2 minutes and claim your dream as already yours.",
-      encouragement: "The universe is already moving on your behalf.",
-      braveNote: "Silence is a productive act."
+      task: "Take 3 deep breaths and visualize the version of you who already has this.",
+      encouragement: "Even in stillness, you are becoming her.",
+      braveNote: "Presence is the foundation of progress."
     };
   }
 };

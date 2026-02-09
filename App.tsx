@@ -19,7 +19,8 @@ import {
   Moon,
   Sun,
   Upload,
-  UserCircle
+  UserCircle,
+  Share
 } from 'lucide-react';
 import { Category, UserState, Dream, Win, MicroAction, EnergyLevel, AppTheme } from './types.ts';
 import { CATEGORIES, SUGGESTED_DREAMS, GABBY_QUOTES } from './constants.tsx';
@@ -27,6 +28,7 @@ import { generateMicroAction, generateLegacyReflection, generateIdentityEvolutio
 import { supabase } from './services/supabase.ts';
 import Confetti from './components/Confetti.tsx';
 import Auth from './components/Auth.tsx';
+import ShareModal from './components/ShareModal.tsx';
 
 const App: React.FC = () => {
   // --- STATE ---
@@ -44,6 +46,7 @@ const App: React.FC = () => {
   const [legacyReflection, setLegacyReflection] = useState<string | null>(null);
   const [dailyAffirmation, setDailyAffirmation] = useState<string | null>(null);
   const [identityTitle, setIdentityTitle] = useState<string>("Dreamer");
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -131,7 +134,13 @@ const App: React.FC = () => {
     const activeDream = userState.dreams.find(d => d.id === userState.activeDreamId);
     if (!activeDream) return;
     setLoadingAction(true);
-    const action = await generateMicroAction(activeDream.category, activeDream.title, energyLevel);
+    // Pass identityTitle for a more personalized prompt context
+    const action = await generateMicroAction(
+      activeDream.category, 
+      activeDream.title, 
+      energyLevel,
+      identityTitle
+    );
     setDailyAction(action);
     setLoadingAction(false);
     setShowEnergyPicker(false);
@@ -173,6 +182,8 @@ const App: React.FC = () => {
 
   const RenderRitual = () => {
     const isDone = userState?.lastCompletedDate === new Date().toISOString().split('T')[0];
+    const activeDream = userState?.dreams.find(d => d.id === userState?.activeDreamId);
+
     return (
       <div className="h-full p-8 flex flex-col items-center justify-center space-y-12 relative">
         <div className="absolute top-16 w-full flex justify-between px-8 animate-fade-in-up">
@@ -239,7 +250,27 @@ const App: React.FC = () => {
                       "{legacyReflection || userState?.wins[0]?.reflection}"
                     </div>
                   </div>
-                  <p className="text-[9px] text-charcoal/30 dark:text-white/20 font-black uppercase tracking-[0.4em]">The work of becoming is done for today. 🥂</p>
+                  <div className="space-y-4">
+                    <button 
+                      onClick={() => setShowShareModal(true)}
+                      className="btn-luxury flex items-center justify-center space-x-3 px-8 py-5 bg-charcoal dark:bg-primary text-white rounded-full font-black text-xs shadow-xl"
+                    >
+                      <Share className="w-4 h-4" />
+                      <span>Share This Shift</span>
+                    </button>
+                    <p className="text-[9px] text-charcoal/30 dark:text-white/20 font-black uppercase tracking-[0.4em]">The work of becoming is done for today. 🥂</p>
+                  </div>
+
+                  {showShareModal && (
+                    <ShareModal 
+                      title={userState?.wins[0]?.action || ""}
+                      reflection={userState?.wins[0]?.reflection || ""}
+                      identityTitle={identityTitle}
+                      dreamTitle={activeDream?.title || ""}
+                      theme={userState?.theme}
+                      onClose={() => setShowShareModal(false)}
+                    />
+                  )}
                </div>
             ) : (
               <>
@@ -446,7 +477,6 @@ const App: React.FC = () => {
               className={`btn-luxury flex flex-col items-center space-y-1.5 transition-all py-5 px-4 min-w-[70px] ${view === tab.v ? 'text-primary' : 'text-charcoal/30 dark:text-white/30'}`}
             >
               <div className={`${view === tab.v ? 'scale-125' : ''} transition-all duration-500`}>
-                 {/* Fixed: Use React.ReactElement<any> to allow strokeWidth property in cloneElement */}
                  {React.cloneElement(tab.i as React.ReactElement<any>, { strokeWidth: view === tab.v ? 2.5 : 2 })}
               </div>
               <span className={`text-[8px] font-black uppercase tracking-[0.3em] transition-opacity ${view === tab.v ? 'opacity-100' : 'opacity-40'}`}>
